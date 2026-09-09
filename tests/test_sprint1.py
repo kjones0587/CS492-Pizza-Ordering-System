@@ -204,3 +204,161 @@ def test_t1_06_responsive_layout_review(client):
         assert 'container' in html
         assert 'col-' in html or 'col-md-' in html or 'col-lg-' in html
 
+# =============================================================================
+# Task T1-03: Cart Boundary & Edge-Case Test Suite
+# Author / Owner: Kellen Jones (Scrum Master & Development Team)
+# Scope: Validates duplicate item merging, customization isolation, defensive
+# quantity boundary limits [1, 50], notes sanitization, and AJAX response schemas.
+# =============================================================================
+
+def test_t1_03_cart_duplicate_item_merging(client):
+    """T1-03: Adding identical item configuration merges quantity instead of duplicating lines."""
+    item = MenuItem.query.filter_by(name='Margherita Classico').first()
+    assert item is not None
+
+    # First add: 2x Personal Margherita
+    client.post('/cart/add', data={
+        'menu_item_id': item.id,
+        'size_option': 'Personal (10")',
+        'crust_option': 'Classic Hand-Tossed',
+        'special_notes': 'Extra basil',
+        'quantity': 2
+    })
+
+    # Second add: 3x identical configuration
+    res = client.post('/cart/add', data={
+        'menu_item_id': item.id,
+        'size_option': 'Personal (10")',
+        'crust_option': 'Classic Hand-Tossed',
+        'special_notes': 'Extra basil',
+        'quantity': 3
+    }, follow_redirects=True)
+
+    cart_html = res.data.decode('utf-8')
+    # Should show merged quantity 5
+    assert '5' in cart_html
+    # Subtotal should equal 5 * base_price
+    expected_subtotal = round(5 * item.base_price, 2)
+    assert f"${expected_subtotal:.2f}" in cart_html
+
+def test_t1_03_cart_distinct_customizations_separation(client):
+    """T1-03: Different sizes or crusts for same pizza are kept as distinct line items."""
+    item = MenuItem.query.filter_by(name='Pepperoni Rustica').first()
+    assert item is not None
+
+    # Add 1: Personal size
+    client.post('/cart/add', data={
+        'menu_item_id': item.id,
+        'size_option': 'Personal (10")',
+        'crust_option': 'Classic Hand-Tossed',
+        'quantity': 1
+    })
+
+    # Add 2: Large size (+6.50) with Stuffed Crust (+3.00)
+    res = client.post('/cart/add', data={
+        'menu_item_id': item.id,
+        'size_option': 'Large (16")',
+        'crust_option': 'Garlic Herb Stuffed Crust',
+        'quantity': 1
+    }, follow_redirects=True)
+
+    cart_html = res.data.decode('utf-8')
+    # Both distinct options must appear in cart
+    assert 'Personal' in cart_html
+    assert 'Large' in cart_html
+    assert 'Garlic Herb Stuffed Crust' in cart_html
+
+def test_t1_03_cart_quantity_clamping_and_boundaries(client):
+    """T1-03: Defensive server-side boundaries clamp quantities between 1 and 50."""
+    item = MenuItem.query.filter_by(name='Margherita Classico').first()
+    assert item is not None
+
+    # Test 1: Submitting an extreme quantity (e.g. 999) is clamped to MAX_ITEM_QUANTITY (50)
+    res_add = client.post('/cart/add', data={
+        'menu_item_id': item.id,
+        'quantity': 999
+    }, follow_redirects=True)
+    assert '50' in res_add.data.decode('utf-8')
+
+    # Test 2: Submitting 0 or negative quantity clamps to 1
+    client.post('/cart/clear')
+    res_zero = client.post('/cart/add', data={
+        'menu_item_id': item.id,
+        'quantity': -5
+    }, follow_redirects=True)
+    assert '1' in res_zero.data.decode('utf-8')
+
+    # Test 3: Updating quantity to 0 removes the line item
+    res_remove = client.post('/cart/update', data={
+        'index': 0,
+        'action': 'set',
+        'quantity': 0
+    }, follow_redirects=True)
+    assert 'Your Cart is Currently Empty' in res_remove.data.decode('utf-8')
+
+def test_t1_03_cart_special_notes_sanitization(client):
+    """T1-03: Special notes exceeding 200 characters are safely bounded to prevent cookie bloat."""
+    item = MenuItem.query.filter_by(name='Margherita Classico').first()
+    assert item is not None
+
+    oversized_notes = 'A' * 300  # 300 characters
+    res = client.post('/cart/add', data={
+        'menu_item_id': item.id,
+        'special_notes': oversized_notes,
+        'quantity': 1
+    }, follow_redirects=True)
+
+    cart_html = res.data.decode('utf-8')
+    # 200 'A' characters should be present, but not 300
+    assert 'A' * 200 in cart_html
+    assert 'A' * 250 not in cart_html
+
+def test_t1_03_cart_sold_out_rejection(client):
+    """T1-03: Adding an unavailable item returns 400 for AJAX or redirects with danger flash."""
+    sold_out_item = MenuItem.query.filter_by(is_available=False).first()
+    assert sold_out_item is not None
+
+    # Form POST rejection
+    res = client.post('/cart/add', data={'menu_item_id': sold_out_item.id}, follow_redirects=True)
+    assert 'currently out of stock' in res.data.decode('utf-8')
+
+    # AJAX POST rejection
+    ajax_res = client.post('/cart/add', data={'menu_item_id': sold_out_item.id}, headers={'X-Requested-With': 'XMLHttpRequest'})
+    assert ajax_res.status_code == 400
+    json_data = ajax_res.get_json()
+    assert json_data['success'] is False
+    assert 'sold out' in json_data['message'].lower()
+
+def test_t1_03_cart_ajax_operations(client):
+    """T1-03: AJAX cart add, update, and remove endpoints return well-formed JSON payloads."""
+    item = MenuItem.query.filter_by(is_available=True).first()
+    assert item is not None
+
+    # AJAX Add
+    res_add = client.post('/cart/add', data={
+        'menu_item_id': item.id,
+        'quantity': 2
+    }, headers={'X-Requested-With': 'XMLHttpRequest'})
+    assert res_add.status_code == 200
+    data_add = res_add.get_json()
+    assert data_add['success'] is True
+    assert data_add['cart_count'] == 2
+
+    # AJAX Update Quantity
+    res_upd = client.post('/cart/update', data={
+        'index': 0,
+        'action': 'increase'
+    }, headers={'X-Requested-With': 'XMLHttpRequest'})
+    assert res_upd.status_code == 200
+    data_upd = res_upd.get_json()
+    assert data_upd['success'] is True
+    assert data_upd['totals']['item_count'] == 3
+
+    # AJAX Remove Item
+    res_rem = client.post('/cart/remove/0', headers={'X-Requested-With': 'XMLHttpRequest'})
+    assert res_rem.status_code == 200
+    data_rem = res_rem.get_json()
+    assert data_rem['success'] is True
+    assert data_rem['totals']['item_count'] == 0
+
+
