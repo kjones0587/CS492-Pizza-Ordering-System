@@ -1,7 +1,14 @@
-// Shopping Cart & Order Customization Interactive Logic
+// =============================================================================
+// Task T1-03: Shopping Cart & Order Customization Interactive Logic
+// Author / Module Lead: Kellen Jones (Scrum Master & Development Team)
+// Description: Provides dynamic client-side bill calculation, options customizer
+// modal logic, and zero-page-reload AJAX quantity and removal controls.
+// =============================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Checkout Dynamic Bill Recalculation (Pickup vs Delivery)
+    // -------------------------------------------------------------------------
+    // 1. Checkout Dynamic Bill Recalculation (Pickup vs Delivery) - Task T1-04
+    // -------------------------------------------------------------------------
     const orderTypeRadios = document.querySelectorAll('input[name="order_type"]');
     const deliveryAddressGroup = document.getElementById('delivery-address-group');
     const deliveryAddressInput = document.getElementById('delivery_address');
@@ -59,7 +66,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 2. Menu Item Customization Modal
+    // -------------------------------------------------------------------------
+    // 2. Menu Item Customization Modal - Task T1-02 / T1-03
+    // -------------------------------------------------------------------------
     const customizeModalEl = document.getElementById('customizeModal');
     if (customizeModalEl) {
         const customizeModal = new bootstrap.Modal(customizeModalEl);
@@ -160,5 +169,125 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. Live AJAX Quantity Modifiers & Item Removal (Task T1-03: Kellen Jones)
+    // Seamlessly adjusts quantities, recalculates row totals & summary box,
+    // and syncs the navbar badge without full-page reloads.
+    // -------------------------------------------------------------------------
+    const cartTableBody = document.getElementById('cart-table-body');
+    const cartContentSection = document.getElementById('cart-content-section');
+    const cartEmptySection = document.getElementById('cart-empty-section');
+    const clearCartForm = document.getElementById('clear-cart-form');
+    const summaryItemCount = document.getElementById('summary-item-count');
+    const summarySubtotal = document.getElementById('summary-subtotal');
+    const summaryTax = document.getElementById('summary-tax');
+    const navCartBadge = document.getElementById('nav-cart-badge');
+
+    function updateCartSummary(totals) {
+        if (summaryItemCount) summaryItemCount.textContent = totals.item_count;
+        if (summarySubtotal) summarySubtotal.textContent = '$' + totals.subtotal.toFixed(2);
+        if (summaryTax) summaryTax.textContent = '$' + totals.tax_amount.toFixed(2);
+
+        // Synchronize top navbar cart badge
+        if (navCartBadge) {
+            if (totals.item_count > 0) {
+                navCartBadge.textContent = totals.item_count;
+                navCartBadge.classList.remove('d-none');
+            } else {
+                navCartBadge.textContent = '0';
+                navCartBadge.classList.add('d-none');
+            }
+        }
+
+        // Toggle empty-cart state dynamically if cart has 0 items
+        if (totals.item_count === 0) {
+            if (cartContentSection) cartContentSection.classList.add('d-none');
+            if (clearCartForm) clearCartForm.classList.add('d-none');
+            if (cartEmptySection) cartEmptySection.classList.remove('d-none');
+        }
+    }
+
+    function reindexCartRows() {
+        const rows = document.querySelectorAll('.cart-row');
+        rows.forEach((row, idx) => {
+            row.dataset.index = idx;
+            row.querySelectorAll('.cart-input-index').forEach(input => {
+                input.value = idx;
+            });
+            // Update remove form action URL index
+            const removeForm = row.querySelector('.cart-remove-form');
+            if (removeForm) {
+                removeForm.action = `/cart/remove/${idx}`;
+            }
+        });
+    }
+
+    if (cartTableBody) {
+        // Intercept quantity modifier form submissions (+ and -)
+        cartTableBody.addEventListener('submit', (e) => {
+            const qtyForm = e.target.closest('.cart-qty-form');
+            if (qtyForm) {
+                e.preventDefault();
+                const formData = new FormData(qtyForm);
+                const row = qtyForm.closest('.cart-row');
+                const rowIndex = parseInt(row.dataset.index, 10);
+
+                fetch(qtyForm.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success && data.totals) {
+                        updateCartSummary(data.totals);
+
+                        // If quantity reached zero, the item was removed on backend
+                        if (rowIndex >= data.cart.length || data.cart[rowIndex] === undefined) {
+                            row.remove();
+                            reindexCartRows();
+                        } else {
+                            // Update row quantity display and line total
+                            const updatedItem = data.cart[rowIndex];
+                            const qtySpan = row.querySelector('.cart-qty-text');
+                            const totalCell = row.querySelector('.cart-row-total');
+                            if (qtySpan) qtySpan.textContent = updatedItem.quantity;
+                            if (totalCell) totalCell.textContent = '$' + updatedItem.line_total.toFixed(2);
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.error('Error updating cart item quantity:', err);
+                    qtyForm.submit(); // Graceful fallback to standard POST
+                });
+                return;
+            }
+
+            // Intercept item removal form submissions (trash icon)
+            const removeForm = e.target.closest('.cart-remove-form');
+            if (removeForm) {
+                e.preventDefault();
+                const row = removeForm.closest('.cart-row');
+
+                fetch(removeForm.action, {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success && data.totals) {
+                        updateCartSummary(data.totals);
+                        row.remove();
+                        reindexCartRows();
+                    }
+                })
+                .catch(err => {
+                    console.error('Error removing item from cart:', err);
+                    removeForm.submit(); // Graceful fallback to standard POST
+                });
+            }
+        });
     }
 });

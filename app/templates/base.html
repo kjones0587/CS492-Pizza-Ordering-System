@@ -45,11 +45,9 @@
                     <a href="{{ url_for('cart.index') }}" class="btn btn-pizza-outline d-flex align-items-center position-relative">
                         <i class="bi bi-cart3 me-2 fs-5"></i>
                         <span>Cart</span>
-                        {% if cart_count > 0 %}
-                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                        <span id="nav-cart-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger {% if cart_count == 0 %}d-none{% endif %}">
                             {{ cart_count }}
                         </span>
-                        {% endif %}
                     </a>
                     <a href="{{ url_for('menu.index') }}" class="btn btn-pizza-primary d-none d-sm-inline-block">
                         Order Now

@@ -4,23 +4,21 @@
 
 {% block content %}
 <div class="container py-4">
+    <!-- Header with Title and Clear Cart Button -->
     <div class="d-flex align-items-center justify-content-between mb-4">
         <div>
             <h1 class="fw-bold text-dark mb-1">Your Order Cart</h1>
             <p class="text-muted mb-0">Review your customized items before checkout.</p>
         </div>
-        {% if cart %}
-        <form action="{{ url_for('cart.clear_cart') }}" method="POST" onsubmit="return confirm('Are you sure you want to clear your entire cart?');">
+        <form id="clear-cart-form" action="{{ url_for('cart.clear_cart') }}" method="POST" onsubmit="return confirm('Are you sure you want to clear your entire cart?');" class="{% if not cart %}d-none{% endif %}">
             <button type="submit" class="btn btn-outline-danger btn-sm">
                 <i class="bi bi-trash3 me-1"></i> Clear Cart
             </button>
         </form>
-        {% endif %}
     </div>
 
-    {% if not cart %}
     <!-- Empty Cart Behavior (PB-03 Acceptance Criteria) -->
-    <div class="text-center py-5 my-4 bg-white rounded-4 shadow-sm border p-5">
+    <div id="cart-empty-section" class="text-center py-5 my-4 bg-white rounded-4 shadow-sm border p-5 {% if cart %}d-none{% endif %}">
         <div class="d-inline-flex align-items-center justify-content-center bg-danger bg-opacity-10 text-danger rounded-circle mb-4" style="width: 90px; height: 90px;">
             <i class="bi bi-cart-x fs-1"></i>
         </div>
@@ -33,15 +31,14 @@
         </a>
     </div>
 
-    {% else %}
-    <!-- Cart Items List & Summary -->
-    <div class="row g-4">
+    <!-- Cart Items List & Summary (Task T1-03: Kellen Jones) -->
+    <div id="cart-content-section" class="row g-4 {% if not cart %}d-none{% endif %}">
         <!-- Items Column -->
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle mb-0" id="cart-table">
                             <thead class="table-light">
                                 <tr>
                                     <th class="ps-4 py-3" style="min-width: 250px;">Item</th>
@@ -51,9 +48,9 @@
                                     <th class="text-center pe-4 py-3" style="width: 50px;"></th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="cart-table-body">
                                 {% for item in cart %}
-                                <tr>
+                                <tr class="cart-row" data-index="{{ loop.index0 }}">
                                     <td class="ps-4 py-3">
                                         <div class="d-flex align-items-center">
                                             {% if item.image_url %}
@@ -79,26 +76,27 @@
                                     </td>
                                     <td class="text-center fw-medium">${{ "%.2f"|format(item.unit_price) }}</td>
                                     <td class="text-center">
-                                        <!-- Quantity Controls (PB-03) -->
+                                        <!-- Quantity Controls with AJAX & Form Fallback (PB-03) -->
                                         <div class="d-inline-flex align-items-center border rounded-3 p-1 bg-white">
-                                            <form action="{{ url_for('cart.update_item') }}" method="POST" class="d-inline">
-                                                <input type="hidden" name="index" value="{{ loop.index0 }}">
+                                            <form action="{{ url_for('cart.update_item') }}" method="POST" class="d-inline cart-qty-form">
+                                                <input type="hidden" name="index" class="cart-input-index" value="{{ loop.index0 }}">
                                                 <input type="hidden" name="action" value="decrease">
-                                                <button type="submit" class="btn btn-sm btn-light qty-btn" title="Decrease quantity">-</button>
+                                                <button type="submit" class="btn btn-sm btn-light qty-btn btn-qty-decrease" title="Decrease quantity">-</button>
                                             </form>
-                                            <span class="px-3 fw-bold">{{ item.quantity }}</span>
-                                            <form action="{{ url_for('cart.update_item') }}" method="POST" class="d-inline">
-                                                <input type="hidden" name="index" value="{{ loop.index0 }}">
+                                            <span class="px-3 fw-bold cart-qty-text">{{ item.quantity }}</span>
+                                            <form action="{{ url_for('cart.update_item') }}" method="POST" class="d-inline cart-qty-form">
+                                                <input type="hidden" name="index" class="cart-input-index" value="{{ loop.index0 }}">
                                                 <input type="hidden" name="action" value="increase">
-                                                <button type="submit" class="btn btn-sm btn-light qty-btn" title="Increase quantity">+</button>
+                                                <button type="submit" class="btn btn-sm btn-light qty-btn btn-qty-increase" title="Increase quantity">+</button>
                                             </form>
                                         </div>
                                     </td>
-                                    <td class="text-end fw-bold text-dark pe-3">
+                                    <td class="text-end fw-bold text-dark pe-3 cart-row-total">
                                         ${{ "%.2f"|format(item.line_total) }}
                                     </td>
                                     <td class="text-center pe-4">
-                                        <form action="{{ url_for('cart.remove_item', index=loop.index0) }}" method="POST">
+                                        <form action="{{ url_for('cart.remove_item', index=loop.index0) }}" method="POST" class="cart-remove-form">
+                                            <input type="hidden" name="index" class="cart-input-index" value="{{ loop.index0 }}">
                                             <button type="submit" class="btn btn-outline-danger btn-sm rounded-circle p-2" title="Remove item">
                                                 <i class="bi bi-trash"></i>
                                             </button>
@@ -119,19 +117,19 @@
 
         <!-- Order Summary Side Card (PB-04 Preview) -->
         <div class="col-lg-4">
-            <div class="card border-0 shadow-sm rounded-4 p-4">
+            <div class="card border-0 shadow-sm rounded-4 p-4 sticky-top" style="top: 95px;">
                 <h4 class="fw-bold mb-3">Order Summary</h4>
                 <div class="d-flex justify-content-between mb-2">
                     <span class="text-muted">Total Items</span>
-                    <span class="fw-bold">{{ totals.item_count }}</span>
+                    <span class="fw-bold" id="summary-item-count">{{ totals.item_count }}</span>
                 </div>
                 <div class="d-flex justify-content-between mb-2">
                     <span class="text-muted">Subtotal</span>
-                    <span class="fw-bold fs-5">${{ "%.2f"|format(totals.subtotal) }}</span>
+                    <span class="fw-bold fs-5 text-dark" id="summary-subtotal">${{ "%.2f"|format(totals.subtotal) }}</span>
                 </div>
                 <div class="d-flex justify-content-between mb-3">
                     <span class="text-muted">Estimated Tax (8.25%)</span>
-                    <span class="fw-medium">${{ "%.2f"|format(totals.tax_amount) }}</span>
+                    <span class="fw-medium text-dark" id="summary-tax">${{ "%.2f"|format(totals.tax_amount) }}</span>
                 </div>
                 
                 <div class="receipt-divider"></div>
@@ -146,6 +144,5 @@
             </div>
         </div>
     </div>
-    {% endif %}
 </div>
 {% endblock %}
