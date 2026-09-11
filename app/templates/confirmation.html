@@ -37,10 +37,24 @@
                         <div class="col-sm-4">
                             <small class="text-muted text-uppercase fw-bold d-block">Estimated Time</small>
                             <span class="fs-5 fw-bold text-success">
-                                {% if order.order_type == 'delivery' %}40 - 50 mins{% else %}20 - 25 mins{% endif %}
+                                {% if order.order_type == 'delivery' %}
+                                    {{ estimates.delivery_time if estimates else '40 - 50 mins' }}
+                                {% else %}
+                                    {{ estimates.pickup_time if estimates else '20 - 25 mins' }}
+                                {% endif %}
                             </span>
                         </div>
                     </div>
+
+                    {% if estimates and estimates.is_catering %}
+                    <div class="alert alert-warning border-warning d-flex align-items-center mb-4 p-3 rounded-3 shadow-sm">
+                        <i class="bi bi-exclamation-triangle-fill text-warning fs-4 me-3 flex-shrink-0"></i>
+                        <div>
+                            <strong class="d-block text-dark">High-Volume / Catering Order ({{ item_count }} Items)</strong>
+                            <small class="text-dark">Due to large order volume, extended oven time is required. Our kitchen team will phone <strong>{{ order.customer_phone }}</strong> if custom staging is required.</small>
+                        </div>
+                    </div>
+                    {% endif %}
 
                     <!-- Customer & Delivery Summary -->
                     <div class="row g-4 mb-4">

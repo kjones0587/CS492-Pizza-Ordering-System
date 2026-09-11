@@ -21,21 +21,57 @@ def get_cart():
         session['cart'] = []
     return session['cart']
 
+def get_fulfillment_estimates(item_count):
+    """Calculate realistic kitchen prep and delivery times based on order volume.
+    
+    Tasks T1-03 / T1-04: Prevents unrealistic turnaround estimates on large/catering orders.
+    """
+    if item_count >= 12:
+        return {
+            'tier': 'catering',
+            'is_catering': True,
+            'pickup_time': '60-90+ mins',
+            'delivery_time': '75-100+ mins',
+            'badge_text': 'High-Volume / Catering Order',
+            'notice': f'High-Volume Order Notice ({item_count} items): Large orders require extended oven time in our stone-deck oven. Our kitchen will prioritize your bake and phone ahead if scheduling adjustments are required.'
+        }
+    elif item_count >= 6:
+        return {
+            'tier': 'medium',
+            'is_catering': False,
+            'pickup_time': '35-45 mins',
+            'delivery_time': '50-65 mins',
+            'badge_text': 'Group Order',
+            'notice': f'Group Order Notice ({item_count} items): Please allow 35-45 minutes for hand-tossed preparation during busy kitchen hours.'
+        }
+    else:
+        return {
+            'tier': 'standard',
+            'is_catering': False,
+            'pickup_time': '20-25 mins',
+            'delivery_time': '40-50 mins',
+            'badge_text': 'Standard Order',
+            'notice': None
+        }
+
 def calculate_totals(cart, order_type='pickup'):
-    """Compute subtotal, sales tax, delivery fee, and grand total."""
+    """Compute subtotal, sales tax, delivery fee, grand total, and dynamic fulfillment estimates."""
+    item_count = sum(item.get('quantity', 1) for item in cart)
     subtotal = sum(item.get('unit_price', 0.0) * item.get('quantity', 1) for item in cart)
     subtotal = round(subtotal, 2)
     tax_rate = current_app.config.get('TAX_RATE', 0.0825)
     tax_amount = round(subtotal * tax_rate, 2)
     delivery_fee = current_app.config.get('DELIVERY_FEE', 4.99) if order_type == 'delivery' else 0.0
     total_amount = round(subtotal + tax_amount + delivery_fee, 2)
+    estimates = get_fulfillment_estimates(item_count)
     return {
         'subtotal': subtotal,
         'tax_rate': tax_rate,
         'tax_amount': tax_amount,
         'delivery_fee': delivery_fee,
         'total_amount': total_amount,
-        'item_count': sum(item.get('quantity', 1) for item in cart)
+        'item_count': item_count,
+        'estimates': estimates
     }
 
 @cart_bp.route('/')

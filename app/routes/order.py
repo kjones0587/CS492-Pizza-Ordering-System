@@ -3,7 +3,7 @@ import string
 from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, session, redirect, url_for, flash
 from app.models import db, Order, OrderItem
-from app.routes.cart import get_cart, calculate_totals
+from app.routes.cart import get_cart, calculate_totals, get_fulfillment_estimates
 
 order_bp = Blueprint('order', __name__)
 
@@ -92,4 +92,6 @@ def submit_order():
 @order_bp.route('/confirmation/<order_number>')
 def confirmation(order_number):
     order = Order.query.filter_by(order_number=order_number).first_or_404()
-    return render_template('confirmation.html', order=order)
+    item_count = sum(item.quantity for item in order.items)
+    estimates = get_fulfillment_estimates(item_count)
+    return render_template('confirmation.html', order=order, estimates=estimates, item_count=item_count)

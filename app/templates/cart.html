@@ -134,6 +134,17 @@
                 
                 <div class="receipt-divider"></div>
 
+                <!-- Catering / Volume Early Warning (Task T1-03 / T1-04) -->
+                <div id="cart-catering-banner" class="alert alert-warning border-warning small py-2 px-3 mb-3 rounded-3 {% if not (totals.estimates and totals.estimates.is_catering) %}d-none{% endif %}">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-exclamation-triangle-fill text-warning me-2 fs-6"></i>
+                        <div>
+                            <strong class="d-block text-dark">High-Volume Order (<span id="cart-catering-count">{{ totals.item_count }}</span> items)</strong>
+                            <small class="text-dark">Extended oven prep required (60–90+ mins).</small>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="alert alert-light border small text-muted mb-4">
                     <i class="bi bi-info-circle me-1 text-primary"></i> Pickup & Delivery options and final bill calculation are confirmed in the next step.
                 </div>

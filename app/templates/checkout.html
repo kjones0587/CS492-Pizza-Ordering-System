@@ -31,7 +31,7 @@
                                     <input type="radio" name="order_type" value="pickup" class="form-check-input me-3" {% if order_type == 'pickup' %}checked{% endif %}>
                                     <div>
                                         <div class="fw-bold text-dark"><i class="bi bi-shop me-1 text-danger"></i> In-Store Pickup</div>
-                                        <small class="text-muted">Ready in 20-25 mins • Free</small>
+                                        <small class="text-muted" id="fulfillment-pickup-time">Ready in {{ totals.estimates.pickup_time }} • Free</small>
                                     </div>
                                 </label>
                             </div>
@@ -40,10 +40,28 @@
                                     <input type="radio" name="order_type" value="delivery" class="form-check-input me-3" {% if order_type == 'delivery' %}checked{% endif %}>
                                     <div>
                                         <div class="fw-bold text-dark"><i class="bi bi-bicycle me-1 text-danger"></i> Local Delivery</div>
-                                        <small class="text-muted">Delivered in 40-50 mins • $4.99</small>
+                                        <small class="text-muted" id="fulfillment-delivery-time">Delivered in {{ totals.estimates.delivery_time }} • $4.99</small>
                                     </div>
                                 </label>
                             </div>
+                        </div>
+
+                        <!-- Dynamic Catering / High-Volume Notice (Task T1-03 / T1-04: Kellen Jones) -->
+                        {% if totals.estimates.notice %}
+                        <div class="alert alert-warning border-warning d-flex align-items-start mt-3 mb-2 p-3 rounded-3 shadow-sm" id="catering-notice-box">
+                            <i class="bi bi-exclamation-triangle-fill text-warning fs-5 me-2 flex-shrink-0 mt-1"></i>
+                            <div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <strong class="text-dark">{{ totals.estimates.badge_text }}</strong>
+                                    <span class="badge bg-warning text-dark border">{{ totals.item_count }} Items</span>
+                                </div>
+                                <div class="small text-dark">{{ totals.estimates.notice }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="form-text mt-2 text-muted small">
+                            <i class="bi bi-clock-history me-1"></i> <em>Estimated fulfillment times are approximations and fluctuate based on kitchen volume and peak oven capacity.</em>
                         </div>
                     </div>
 

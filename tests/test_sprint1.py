@@ -393,4 +393,66 @@ def test_t1_03_cart_toast_and_modal_ajax_payload(client):
     assert f'Added {pizza.name} to cart.' in payload['message']
 
 
+def test_t1_03_catering_volume_fulfillment_estimates(client):
+    """T1-03 / T1-04: Validate dynamic fulfillment prep times scale realistically with order volume."""
+    pizza = MenuItem.query.filter(MenuItem.category.has(slug='specialty-pizzas'), MenuItem.is_available == True).first()
+    assert pizza is not None
+
+    # 1. Standard Order (2 items): 20-25m pickup, 40-50m delivery, no catering alert
+    client.post('/cart/clear')
+    client.post('/cart/add', data={'menu_item_id': pizza.id, 'quantity': 2})
+    calc_res = client.post('/cart/calculate-api', json={'order_type': 'pickup'})
+    calc_data = calc_res.get_json()
+    assert calc_data['success'] is True
+    est_std = calc_data['totals']['estimates']
+    assert est_std['tier'] == 'standard'
+    assert est_std['is_catering'] is False
+    assert est_std['pickup_time'] == '20-25 mins'
+    assert est_std['delivery_time'] == '40-50 mins'
+    assert est_std['notice'] is None
+
+    # 2. Medium Group Order (8 items): 35-45m pickup, 50-65m delivery
+    client.post('/cart/clear')
+    client.post('/cart/add', data={'menu_item_id': pizza.id, 'quantity': 8})
+    calc_res8 = client.post('/cart/calculate-api', json={'order_type': 'pickup'})
+    est_med = calc_res8.get_json()['totals']['estimates']
+    assert est_med['tier'] == 'medium'
+    assert est_med['is_catering'] is False
+    assert est_med['pickup_time'] == '35-45 mins'
+    assert est_med['delivery_time'] == '50-65 mins'
+    assert 'Group Order Notice' in est_med['notice']
+
+    # 3. High-Volume / Catering Order (50 items): 60-90+m pickup, 75-100+m delivery, active catering warning
+    client.post('/cart/clear')
+    client.post('/cart/add', data={'menu_item_id': pizza.id, 'quantity': 50})
+    calc_res50 = client.post('/cart/calculate-api', json={'order_type': 'delivery'})
+    est_cat = calc_res50.get_json()['totals']['estimates']
+    assert est_cat['tier'] == 'catering'
+    assert est_cat['is_catering'] is True
+    assert est_cat['pickup_time'] == '60-90+ mins'
+    assert est_cat['delivery_time'] == '75-100+ mins'
+    assert 'High-Volume Order Notice' in est_cat['notice']
+
+    # 4. Verify checkout screen renders the catering alert box and dynamic times
+    checkout_res = client.get('/cart/checkout')
+    checkout_html = checkout_res.data.decode('utf-8')
+    assert 'catering-notice-box' in checkout_html
+    assert '60-90+ mins' in checkout_html
+    assert 'High-Volume / Catering Order' in checkout_html
+
+    # 5. Verify confirmation screen carries over accurate catering timing and call-ahead notice
+    submit_res = client.post('/order/submit', data={
+        'customer_name': 'Jane Doe Catering',
+        'customer_email': 'jane@example.com',
+        'customer_phone': '(555) 392-4920',
+        'order_type': 'delivery',
+        'delivery_address': '123 Campus Blvd, Hall 4'
+    }, follow_redirects=True)
+    assert submit_res.status_code == 200
+    confirm_html = submit_res.data.decode('utf-8')
+    assert '75-100+ mins' in confirm_html
+    assert 'High-Volume / Catering Order' in confirm_html
+
+
+
 

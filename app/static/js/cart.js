@@ -284,6 +284,18 @@ document.addEventListener('DOMContentLoaded', () => {
         // Synchronize top navbar cart badge with bounce feedback
         triggerCartBadgePop(totals.item_count);
 
+        // Update catering early-warning banner in cart summary (Task T1-03 / T1-04)
+        const cateringBanner = document.getElementById('cart-catering-banner');
+        const cateringCount = document.getElementById('cart-catering-count');
+        if (cateringBanner && totals.estimates) {
+            if (totals.estimates.is_catering) {
+                if (cateringCount) cateringCount.textContent = totals.item_count;
+                cateringBanner.classList.remove('d-none');
+            } else {
+                cateringBanner.classList.add('d-none');
+            }
+        }
+
         // Toggle empty-cart state dynamically if cart has 0 items
         if (totals.item_count === 0) {
             if (cartContentSection) cartContentSection.classList.add('d-none');
