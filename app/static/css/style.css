@@ -395,6 +395,31 @@ footer a:hover {
   }
 }
 
+/* Real-time Cart Feedback Animations (Task T1-03: Kellen Jones) */
+@keyframes cart-badge-pop {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  35% {
+    transform: translate(-50%, -50%) scale(1.45);
+  }
+  70% {
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.badge-bounce {
+  animation: cart-badge-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+#cart-toast {
+  min-width: 320px;
+  background-color: #0f172a !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

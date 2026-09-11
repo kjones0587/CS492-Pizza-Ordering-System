@@ -343,6 +343,10 @@ def test_t1_03_cart_ajax_operations(client):
     data_add = res_add.get_json()
     assert data_add['success'] is True
     assert data_add['cart_count'] == 2
+    assert data_add['item_name'] == item.name
+    assert data_add['quantity'] == 2
+    assert data_add['unit_price'] == item.base_price
+    assert data_add['cart_subtotal'] == round(item.base_price * 2, 2)
 
     # AJAX Update Quantity
     res_upd = client.post('/cart/update', data={
@@ -360,5 +364,33 @@ def test_t1_03_cart_ajax_operations(client):
     data_rem = res_rem.get_json()
     assert data_rem['success'] is True
     assert data_rem['totals']['item_count'] == 0
+
+
+def test_t1_03_cart_toast_and_modal_ajax_payload(client):
+    """T1-03: Modal AJAX add-to-cart returns comprehensive metadata for toast notifications and badge animations."""
+    pizza = MenuItem.query.filter(MenuItem.category.has(slug='specialty-pizzas'), MenuItem.is_available == True).first()
+    assert pizza is not None
+
+    res = client.post('/cart/add', data={
+        'menu_item_id': pizza.id,
+        'size_option': 'Large (16")',
+        'crust_option': 'Gluten-Free Cauliflower Crust',
+        'special_notes': 'Extra crispy crust',
+        'quantity': 3
+    }, headers={'X-Requested-With': 'XMLHttpRequest'})
+
+    assert res.status_code == 200
+    payload = res.get_json()
+    assert payload['success'] is True
+    assert payload['item_name'] == pizza.name
+    assert payload['quantity'] == 3
+    assert payload['cart_count'] == 3
+    # Verify calculated unit price with modifiers: Large (+$6.50) + Cauliflower Crust (+$2.50)
+    expected_unit = round(pizza.base_price + 6.50 + 2.50, 2)
+    assert payload['unit_price'] == expected_unit
+    assert payload['line_total'] == round(expected_unit * 3, 2)
+    assert payload['cart_subtotal'] == round(expected_unit * 3, 2)
+    assert f'Added {pizza.name} to cart.' in payload['message']
+
 
 

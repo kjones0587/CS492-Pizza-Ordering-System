@@ -67,6 +67,45 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // -------------------------------------------------------------------------
+    // Top Navbar Cart Badge & Toast Notification Helpers (Task T1-03: Kellen Jones)
+    // -------------------------------------------------------------------------
+    const navCartBadge = document.getElementById('nav-cart-badge');
+    const cartToastEl = document.getElementById('cart-toast');
+    let cartToastInstance = null;
+    if (cartToastEl && typeof bootstrap !== 'undefined' && bootstrap.Toast) {
+        cartToastInstance = new bootstrap.Toast(cartToastEl, { delay: 4500 });
+    }
+
+    function showCartToast(data) {
+        if (!cartToastEl || !cartToastInstance) return;
+        const msgEl = document.getElementById('cart-toast-message');
+        const subtotalEl = document.getElementById('cart-toast-subtotal');
+        const qty = data.quantity || 1;
+        const name = data.item_name || 'Item';
+        if (msgEl) {
+            msgEl.textContent = `${qty}x ${name} added to your order.`;
+        }
+        if (subtotalEl && data.cart_subtotal !== undefined) {
+            subtotalEl.textContent = `Subtotal: $${data.cart_subtotal.toFixed(2)}`;
+        }
+        cartToastInstance.show();
+    }
+
+    function triggerCartBadgePop(count) {
+        if (!navCartBadge) return;
+        navCartBadge.textContent = count;
+        if (count > 0) {
+            navCartBadge.classList.remove('d-none');
+            navCartBadge.classList.remove('badge-bounce');
+            // Force browser reflow to restart CSS keyframe animation
+            void navCartBadge.offsetWidth;
+            navCartBadge.classList.add('badge-bounce');
+        } else {
+            navCartBadge.classList.add('d-none');
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // 2. Menu Item Customization Modal - Task T1-02 / T1-03
     // -------------------------------------------------------------------------
     const customizeModalEl = document.getElementById('customizeModal');
@@ -169,6 +208,59 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         }
+
+        // Intercept Customize Modal Form Submit for Zero-Page-Reload Add-to-Cart
+        if (modalForm) {
+            modalForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const submitBtn = modalForm.querySelector('button[type="submit"]');
+                const origBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Adding...';
+                }
+
+                const formData = new FormData(modalForm);
+
+                fetch(modalForm.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(res => {
+                    if (!res.ok) {
+                        return res.json().then(errData => {
+                            throw new Error(errData.message || 'Failed to add item to cart.');
+                        });
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        customizeModal.hide();
+                        triggerCartBadgePop(data.cart_count);
+                        showCartToast(data);
+
+                        // If user happens to be on the /cart page, reload to show new item in list
+                        if (window.location.pathname === '/cart' || window.location.pathname === '/cart/') {
+                            window.location.reload();
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.error('AJAX add-to-cart error:', err);
+                    alert(err.message || 'Unable to add item to cart. Please try again.');
+                })
+                .finally(() => {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = origBtnHtml;
+                    }
+                });
+            });
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -183,23 +275,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const summaryItemCount = document.getElementById('summary-item-count');
     const summarySubtotal = document.getElementById('summary-subtotal');
     const summaryTax = document.getElementById('summary-tax');
-    const navCartBadge = document.getElementById('nav-cart-badge');
 
     function updateCartSummary(totals) {
         if (summaryItemCount) summaryItemCount.textContent = totals.item_count;
         if (summarySubtotal) summarySubtotal.textContent = '$' + totals.subtotal.toFixed(2);
         if (summaryTax) summaryTax.textContent = '$' + totals.tax_amount.toFixed(2);
 
-        // Synchronize top navbar cart badge
-        if (navCartBadge) {
-            if (totals.item_count > 0) {
-                navCartBadge.textContent = totals.item_count;
-                navCartBadge.classList.remove('d-none');
-            } else {
-                navCartBadge.textContent = '0';
-                navCartBadge.classList.add('d-none');
-            }
-        }
+        // Synchronize top navbar cart badge with bounce feedback
+        triggerCartBadgePop(totals.item_count);
 
         // Toggle empty-cart state dynamically if cart has 0 items
         if (totals.item_count === 0) {

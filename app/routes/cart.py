@@ -132,7 +132,11 @@ def add_to_cart():
             'success': True,
             'message': f'Added {item.name} to cart.',
             'cart_count': totals['item_count'],
-            'cart_subtotal': totals['subtotal']
+            'cart_subtotal': totals['subtotal'],
+            'item_name': item.name,
+            'quantity': quantity,
+            'unit_price': unit_price,
+            'line_total': round(quantity * unit_price, 2)
         })
 
     flash(f'Added {item.name} to your cart!', 'success')
