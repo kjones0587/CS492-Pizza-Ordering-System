@@ -12,19 +12,21 @@ POPULAR_TOPPINGS = [
     {'name': 'Pickled Jalapeños', 'category': 'Veggies', 'price_modifier': 1.00},
     {'name': 'Fresh Sweet Basil', 'category': 'Veggies', 'price_modifier': 1.00},
     {'name': 'Extra Whole Milk Mozzarella', 'category': 'Cheese', 'price_modifier': 1.50},
+    {'name': 'Wisconsin Brick Cheese', 'category': 'Cheese', 'price_modifier': 1.50},
 ]
 
 def seed_database():
     """Seed initial categories and menu items if database is empty, or update existing item options."""
     if Category.query.first() is not None:
-        # Patch existing menu items if they don't have toppings in options
+        # Patch existing menu items if their toppings list differs from current POPULAR_TOPPINGS
         updated = False
         for item in MenuItem.query.all():
             opts = item.get_options()
-            if opts and 'sizes' in opts and opts.get('sizes') and 'toppings' not in opts:
-                opts['toppings'] = POPULAR_TOPPINGS
-                item.options_json = json.dumps(opts)
-                updated = True
+            if opts and 'sizes' in opts and opts.get('sizes'):
+                if opts.get('toppings') != POPULAR_TOPPINGS:
+                    opts['toppings'] = POPULAR_TOPPINGS
+                    item.options_json = json.dumps(opts)
+                    updated = True
         if updated:
             db.session.commit()
         return

@@ -519,7 +519,8 @@ def test_t1_03_cart_topping_customization_and_pricing(client):
     assert item is not None
     options = item.get_options()
     assert 'toppings' in options
-    assert len(options['toppings']) == 10
+    assert len(options['toppings']) == 11
+    assert any(t['name'] == 'Wisconsin Brick Cheese' for t in options['toppings'])
 
     # 1. Add pizza with Large (+6.50), Stuffed Crust (+3.00), and 2 toppings (Pepperoni $1.50 + Extra Mozzarella $1.50)
     # Expected unit price: 16.99 + 6.50 + 3.00 + 1.50 + 1.50 = 29.49
@@ -536,16 +537,17 @@ def test_t1_03_cart_topping_customization_and_pricing(client):
     assert 'Extra Whole Milk Mozzarella' in cart_html1
     assert 'Pepperoni' in cart_html1
 
-    # 2. Add second pizza with DIFFERENT toppings -> Must remain distinct line item
+    # 2. Add second pizza with DIFFERENT toppings including Wisconsin Brick Cheese -> Must remain distinct line item
     res2 = client.post('/cart/add', data={
         'menu_item_id': item.id,
         'size_option': 'Large (16")',
         'crust_option': 'Garlic Herb Stuffed Crust',
-        'toppings': ['Roasted Mushrooms'],
+        'toppings': ['Roasted Mushrooms', 'Wisconsin Brick Cheese'],
         'quantity': 1
     }, follow_redirects=True)
     cart_html2 = res2.data.decode('utf-8')
     assert 'Roasted Mushrooms' in cart_html2
+    assert 'Wisconsin Brick Cheese' in cart_html2
     # Verify both line items are present
     assert cart_html2.count('<tr class="cart-row"') == 2
 
@@ -581,7 +583,7 @@ def test_t1_03_cart_topping_customization_and_pricing(client):
     toppings_saved = [i.toppings for i in latest_order.items if i.toppings]
     assert len(toppings_saved) == 2
     assert any('Extra Whole Milk Mozzarella' in t for t in toppings_saved)
-    assert any('Roasted Mushrooms' in t for t in toppings_saved)
+    assert any('Wisconsin Brick Cheese' in t for t in toppings_saved)
 
     # 5. Check staff orders dashboard displays toppings
     staff_res = client.get('/staff/orders')
