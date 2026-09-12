@@ -1,4 +1,5 @@
 from flask import Flask, session
+from sqlalchemy import text
 from app.config import Config
 from app.models import db
 from app.db_init import seed_database
@@ -47,6 +48,12 @@ def create_app(config_class=Config):
     # Automatically create tables and seed on startup
     with app.app_context():
         db.create_all()
+        try:
+            with db.engine.connect() as conn:
+                conn.execute(text("ALTER TABLE order_items ADD COLUMN toppings VARCHAR(255)"))
+                conn.commit()
+        except Exception:
+            pass  # Column already exists or table freshly created
         seed_database()
 
     return app

@@ -66,6 +66,11 @@
                                                         <span class="badge bg-light text-dark border me-1">{{ item.crust_option }}</span>
                                                     {% endif %}
                                                 </div>
+                                                {% if item.toppings %}
+                                                <div class="small text-muted mt-1">
+                                                    <i class="bi bi-plus-circle-fill text-danger me-1" style="font-size: 0.75rem;"></i><span class="fw-semibold text-dark">Toppings:</span> {{ item.toppings | join(', ') }}
+                                                </div>
+                                                {% endif %}
                                                 <!-- Special Instructions & Inline Editor (Task T1-03: Kellen Jones) -->
                                                 <div class="cart-note-container mt-1">
                                                     <div class="cart-note-display small text-muted fst-italic {% if not item.special_notes %}d-none{% endif %}">

@@ -513,6 +513,82 @@ def test_t1_03_cart_inline_note_update(client):
     assert 'cart-inline-note-form' in cart_html
     assert 'cart-note-container' in cart_html
 
+def test_t1_03_cart_topping_customization_and_pricing(client):
+    """T1-03 & T1-04: Test pizza topping customization, dynamic price calculation, distinct line separation, and order persistence."""
+    item = MenuItem.query.filter_by(name='Pepperoni Rustica').first()
+    assert item is not None
+    options = item.get_options()
+    assert 'toppings' in options
+    assert len(options['toppings']) == 10
+
+    # 1. Add pizza with Large (+6.50), Stuffed Crust (+3.00), and 2 toppings (Pepperoni $1.50 + Extra Mozzarella $1.50)
+    # Expected unit price: 16.99 + 6.50 + 3.00 + 1.50 + 1.50 = 29.49
+    res1 = client.post('/cart/add', data={
+        'menu_item_id': item.id,
+        'size_option': 'Large (16")',
+        'crust_option': 'Garlic Herb Stuffed Crust',
+        'toppings': ['Pepperoni', 'Extra Whole Milk Mozzarella'],
+        'quantity': 2
+    }, follow_redirects=True)
+    assert res1.status_code == 200
+    cart_html1 = res1.data.decode('utf-8')
+    assert '$58.98' in cart_html1
+    assert 'Extra Whole Milk Mozzarella' in cart_html1
+    assert 'Pepperoni' in cart_html1
+
+    # 2. Add second pizza with DIFFERENT toppings -> Must remain distinct line item
+    res2 = client.post('/cart/add', data={
+        'menu_item_id': item.id,
+        'size_option': 'Large (16")',
+        'crust_option': 'Garlic Herb Stuffed Crust',
+        'toppings': ['Roasted Mushrooms'],
+        'quantity': 1
+    }, follow_redirects=True)
+    cart_html2 = res2.data.decode('utf-8')
+    assert 'Roasted Mushrooms' in cart_html2
+    # Verify both line items are present
+    assert cart_html2.count('<tr class="cart-row"') == 2
+
+    # 3. Add identical configuration to first item -> Must merge quantity (2 + 1 = 3)
+    res3 = client.post('/cart/add', data={
+        'menu_item_id': item.id,
+        'size_option': 'Large (16")',
+        'crust_option': 'Garlic Herb Stuffed Crust',
+        'toppings': ['Extra Whole Milk Mozzarella', 'Pepperoni'],  # Tested in reverse order
+        'quantity': 1
+    }, follow_redirects=True)
+    cart_html3 = res3.data.decode('utf-8')
+    # Should still only be 2 rows in cart table
+    assert cart_html3.count('<tr class="cart-row"') == 2
+    # Quantity for first item should now be 3, subtotal for item 3 * 29.49 = 88.47
+    assert '$88.47' in cart_html3
+
+    # 4. Submit order and verify persistence in OrderItem model and receipts
+    submit_res = client.post('/order/submit', data={
+        'customer_name': 'Kellen Jones',
+        'customer_email': 'kjones@example.com',
+        'customer_phone': '(555) 987-6543',
+        'order_type': 'pickup'
+    }, follow_redirects=True)
+    assert submit_res.status_code == 200
+    confirm_html = submit_res.data.decode('utf-8')
+    assert '+ Toppings:' in confirm_html
+
+    # Check database OrderItem
+    from app.models import Order
+    latest_order = Order.query.order_by(Order.id.desc()).first()
+    assert latest_order is not None
+    toppings_saved = [i.toppings for i in latest_order.items if i.toppings]
+    assert len(toppings_saved) == 2
+    assert any('Extra Whole Milk Mozzarella' in t for t in toppings_saved)
+    assert any('Roasted Mushrooms' in t for t in toppings_saved)
+
+    # 5. Check staff orders dashboard displays toppings
+    staff_res = client.get('/staff/orders')
+    assert staff_res.status_code == 200
+    assert '+ Toppings:' in staff_res.data.decode('utf-8')
+
+
 
 
 

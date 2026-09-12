@@ -114,6 +114,9 @@
                                         {% if itm.size_option or itm.crust_option %}
                                             <span class="text-muted">({{ itm.size_option }}{% if itm.size_option and itm.crust_option %}, {% endif %}{{ itm.crust_option }})</span>
                                         {% endif %}
+                                        {% if itm.toppings %}
+                                            <div class="text-danger small ms-3"><strong>+ Toppings:</strong> {{ itm.toppings }}</div>
+                                        {% endif %}
                                         {% if itm.special_notes %}
                                             <div class="text-muted fst-italic ms-3">Note: {{ itm.special_notes }}</div>
                                         {% endif %}

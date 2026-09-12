@@ -99,6 +99,8 @@ def add_to_cart():
 
     size_name = request.form.get('size_option', '').strip()
     crust_name = request.form.get('crust_option', '').strip()
+    raw_toppings = request.form.getlist('toppings')
+    selected_toppings = [t.strip() for t in raw_toppings if t.strip()]
     
     # Defensive Input Sanitization: strip whitespace and enforce length boundary
     raw_notes = request.form.get('special_notes', '') or ''
@@ -108,7 +110,7 @@ def add_to_cart():
     raw_qty = request.form.get('quantity', 1, type=int)
     quantity = max(1, min(raw_qty if raw_qty is not None else 1, MAX_ITEM_QUANTITY))
 
-    # Calculate unit price based on selected size and crust modifiers
+    # Calculate unit price based on selected size, crust, and topping modifiers
     unit_price = item.base_price
     options = item.get_options()
 
@@ -124,6 +126,16 @@ def add_to_cart():
                 unit_price += c.get('price_modifier', 0.0)
                 break
 
+    # Validate and calculate extra toppings
+    valid_toppings = []
+    if selected_toppings and 'toppings' in options:
+        toppings_map = {t['name']: t.get('price_modifier', 0.0) for t in options['toppings']}
+        for top in selected_toppings:
+            if top in toppings_map:
+                valid_toppings.append(top)
+                unit_price += toppings_map[top]
+    valid_toppings.sort()
+
     unit_price = round(unit_price, 2)
 
     cart = get_cart()
@@ -132,9 +144,10 @@ def add_to_cart():
     existing_index = None
     for idx, cart_item in enumerate(cart):
         if (cart_item['menu_item_id'] == item.id and
-            cart_item.get('size_option') == size_name and
-            cart_item.get('crust_option') == crust_name and
-            cart_item.get('special_notes') == special_notes):
+            (cart_item.get('size_option') or None) == (size_name or None) and
+            (cart_item.get('crust_option') or None) == (crust_name or None) and
+            (cart_item.get('special_notes') or None) == (special_notes or None) and
+            (cart_item.get('toppings') or []) == valid_toppings):
             existing_index = idx
             break
 
@@ -153,6 +166,7 @@ def add_to_cart():
             'image_url': item.image_url,
             'size_option': size_name or None,
             'crust_option': crust_name or None,
+            'toppings': valid_toppings,
             'special_notes': special_notes or None,
             'unit_price': unit_price,
             'quantity': quantity,

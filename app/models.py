@@ -92,6 +92,7 @@ class OrderItem(db.Model):
     item_name = db.Column(db.String(120), nullable=False)
     size_option = db.Column(db.String(50), nullable=True)
     crust_option = db.Column(db.String(50), nullable=True)
+    toppings = db.Column(db.String(255), nullable=True)
     special_notes = db.Column(db.String(255), nullable=True)
     unit_price = db.Column(db.Float, nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=1)

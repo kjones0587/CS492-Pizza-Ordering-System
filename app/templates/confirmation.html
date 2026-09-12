@@ -104,6 +104,9 @@
                                             {% if item.size_option %}{{ item.size_option }}{% endif %}
                                             {% if item.crust_option %} • {{ item.crust_option }}{% endif %}
                                         </div>
+                                        {% if item.toppings %}
+                                        <div class="small text-muted"><span class="text-danger fw-semibold">+ Toppings:</span> {{ item.toppings }}</div>
+                                        {% endif %}
                                         {% if item.special_notes %}
                                         <div class="small text-muted fst-italic">Note: {{ item.special_notes }}</div>
                                         {% endif %}

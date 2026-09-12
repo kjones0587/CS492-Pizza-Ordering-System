@@ -68,12 +68,14 @@ def submit_order():
     db.session.flush()
 
     for item in cart:
+        toppings_val = ", ".join(item.get('toppings', [])) if item.get('toppings') else None
         order_item = OrderItem(
             order_id=new_order.id,
             menu_item_id=item.get('menu_item_id'),
             item_name=item.get('name'),
             size_option=item.get('size_option'),
             crust_option=item.get('crust_option'),
+            toppings=toppings_val,
             special_notes=item.get('special_notes'),
             unit_price=item.get('unit_price'),
             quantity=item.get('quantity', 1),

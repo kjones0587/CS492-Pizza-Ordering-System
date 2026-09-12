@@ -420,6 +420,22 @@ footer a:hover {
   background-color: #0f172a !important;
 }
 
+.topping-card-label {
+  transition: all 0.15s ease-in-out;
+  border-color: #e2e8f0;
+}
+
+.topping-card-label:hover {
+  border-color: var(--primary-pizza) !important;
+  background-color: #fffaf0 !important;
+}
+
+.topping-card-label:has(input:checked) {
+  border-color: var(--primary-pizza) !important;
+  background-color: #fff7ed !important;
+  box-shadow: 0 0 0 1px var(--primary-pizza);
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

@@ -157,6 +157,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const modalItemId = document.getElementById('modal-item-id');
         const modalSizesContainer = document.getElementById('modal-sizes-container');
         const modalCrustsContainer = document.getElementById('modal-crusts-container');
+        const modalToppingsSection = document.getElementById('modal-toppings-section');
+        const modalToppingsContainer = document.getElementById('modal-toppings-container');
+        const toppingsCountBadge = document.getElementById('toppings-selected-count');
+        const modalNotesInput = document.getElementById('modal-notes');
         const modalUnitPriceDisplay = document.getElementById('modal-unit-price');
         const modalQtyInput = document.getElementById('modal-quantity');
         let currentBasePrice = 0.0;
@@ -170,6 +174,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const selectedCrust = document.querySelector('input[name="crust_option"]:checked');
             if (selectedCrust && selectedCrust.dataset.modifier) {
                 price += parseFloat(selectedCrust.dataset.modifier);
+            }
+            const checkedToppings = modalToppingsContainer ? modalToppingsContainer.querySelectorAll('input[name="toppings"]:checked') : [];
+            let toppingsCount = 0;
+            checkedToppings.forEach(top => {
+                toppingsCount++;
+                if (top.dataset.modifier) {
+                    price += parseFloat(top.dataset.modifier);
+                }
+            });
+            if (toppingsCountBadge) {
+                toppingsCountBadge.textContent = `${toppingsCount} selected`;
+                if (toppingsCount > 0) {
+                    toppingsCountBadge.className = 'badge bg-danger text-white border-0 fw-medium';
+                } else {
+                    toppingsCountBadge.className = 'badge bg-light text-secondary border fw-normal';
+                }
             }
             const qty = parseInt(modalQtyInput.value, 10) || 1;
             modalUnitPriceDisplay.textContent = '$' + (price * qty).toFixed(2);
@@ -186,6 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         modalItemDesc.textContent = item.description;
                         currentBasePrice = item.base_price;
                         modalQtyInput.value = 1;
+                        if (modalNotesInput) modalNotesInput.value = '';
 
                         // Render Sizes
                         modalSizesContainer.innerHTML = '';
@@ -223,9 +244,41 @@ document.addEventListener('DOMContentLoaded', () => {
                             document.getElementById('modal-crusts-section').style.display = 'none';
                         }
 
-                        // Attach listeners to new radio options
+                        // Render Toppings (Tasks T1-03 / T1-04)
+                        if (modalToppingsContainer) modalToppingsContainer.innerHTML = '';
+                        if (item.options && item.options.toppings && item.options.toppings.length > 0) {
+                            if (modalToppingsSection) modalToppingsSection.style.display = 'block';
+                            if (toppingsCountBadge) {
+                                toppingsCountBadge.textContent = '0 selected';
+                                toppingsCountBadge.className = 'badge bg-light text-secondary border fw-normal';
+                            }
+                            item.options.toppings.forEach((top, idx) => {
+                                const modVal = top.price_modifier || 0.0;
+                                const modText = modVal > 0 ? `+$${modVal.toFixed(2)}` : 'Free';
+                                const catBadge = top.category === 'Meats' ? 'bg-danger-subtle text-danger' :
+                                                 top.category === 'Cheese' ? 'bg-warning-subtle text-dark' : 'bg-success-subtle text-success';
+                                modalToppingsContainer.innerHTML += `
+                                    <div class="col-sm-6">
+                                        <label class="d-flex align-items-center justify-content-between p-2 rounded-3 border bg-white topping-card-label mb-0 w-100" for="topping_${idx}" style="cursor: pointer;">
+                                            <div class="d-flex align-items-center">
+                                                <input class="form-check-input me-2 mt-0" type="checkbox" name="toppings" id="topping_${idx}" value="${top.name}" data-modifier="${modVal}">
+                                                <span class="small fw-semibold text-dark">${top.name}</span>
+                                            </div>
+                                            <span class="badge ${catBadge} small fw-bold ms-1">${modText}</span>
+                                        </label>
+                                    </div>
+                                `;
+                            });
+                        } else {
+                            if (modalToppingsSection) modalToppingsSection.style.display = 'none';
+                        }
+
+                        // Attach listeners to options
                         modalSizesContainer.querySelectorAll('input').forEach(r => r.addEventListener('change', recalcModalPrice));
                         modalCrustsContainer.querySelectorAll('input').forEach(r => r.addEventListener('change', recalcModalPrice));
+                        if (modalToppingsContainer) {
+                            modalToppingsContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.addEventListener('change', recalcModalPrice));
+                        }
 
                         recalcModalPrice();
                         customizeModal.show();

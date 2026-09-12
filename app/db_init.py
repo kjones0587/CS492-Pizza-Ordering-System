@@ -1,10 +1,33 @@
 import json
 from app.models import db, Category, MenuItem
 
+POPULAR_TOPPINGS = [
+    {'name': 'Pepperoni', 'category': 'Meats', 'price_modifier': 1.50},
+    {'name': 'Italian Sausage', 'category': 'Meats', 'price_modifier': 1.50},
+    {'name': 'Applewood Smoked Bacon', 'category': 'Meats', 'price_modifier': 1.50},
+    {'name': 'Roasted Mushrooms', 'category': 'Veggies', 'price_modifier': 1.00},
+    {'name': 'Black Olives', 'category': 'Veggies', 'price_modifier': 1.00},
+    {'name': 'Green Bell Peppers', 'category': 'Veggies', 'price_modifier': 1.00},
+    {'name': 'Red Onions', 'category': 'Veggies', 'price_modifier': 1.00},
+    {'name': 'Pickled Jalapeños', 'category': 'Veggies', 'price_modifier': 1.00},
+    {'name': 'Fresh Sweet Basil', 'category': 'Veggies', 'price_modifier': 1.00},
+    {'name': 'Extra Whole Milk Mozzarella', 'category': 'Cheese', 'price_modifier': 1.50},
+]
+
 def seed_database():
-    """Seed initial categories and menu items if database is empty."""
+    """Seed initial categories and menu items if database is empty, or update existing item options."""
     if Category.query.first() is not None:
-        return  # Database already seeded
+        # Patch existing menu items if they don't have toppings in options
+        updated = False
+        for item in MenuItem.query.all():
+            opts = item.get_options()
+            if opts and 'sizes' in opts and opts.get('sizes') and 'toppings' not in opts:
+                opts['toppings'] = POPULAR_TOPPINGS
+                item.options_json = json.dumps(opts)
+                updated = True
+        if updated:
+            db.session.commit()
+        return
 
     categories_data = [
         {
@@ -63,7 +86,8 @@ def seed_database():
             {'name': 'Crispy Thin Crust', 'price_modifier': 0.0},
             {'name': 'Gluten-Free Cauliflower Crust', 'price_modifier': 2.50},
             {'name': 'Garlic Herb Stuffed Crust', 'price_modifier': 3.00}
-        ]
+        ],
+        'toppings': POPULAR_TOPPINGS
     }
 
     menu_items_data = [

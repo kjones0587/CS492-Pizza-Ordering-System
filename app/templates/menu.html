@@ -70,7 +70,7 @@
                         <p class="card-text text-muted small flex-grow-1">{{ item.description }}</p>
                         
                         <!-- Available Options summary (PB-02) -->
-                        {% if options.sizes or options.crusts %}
+                        {% if options.sizes or options.crusts or options.toppings %}
                         <div class="bg-light rounded p-2 mb-3 small">
                             {% if options.sizes %}
                             <div class="text-secondary">
@@ -82,6 +82,11 @@
                             <div class="text-secondary mt-1">
                                 <strong>Crusts:</strong> 
                                 {{ options.crusts | map(attribute='name') | join(', ') }}
+                            </div>
+                            {% endif %}
+                            {% if options.toppings %}
+                            <div class="text-secondary mt-1">
+                                <strong>Toppings:</strong> Popular meats, veggies & extra cheese
                             </div>
                             {% endif %}
                         </div>
