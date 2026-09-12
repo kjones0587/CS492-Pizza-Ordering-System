@@ -238,6 +238,40 @@ def remove_item(index):
 
     return redirect(url_for('cart.index'))
 
+@cart_bp.route('/update-note', methods=['POST'])
+def update_note():
+    """Task T1-03: Update special preparation instructions for an item directly from the cart table.
+    
+    Allows customers to modify custom prep notes (crust bake, sauce preference, allergy notes)
+    without having to delete and re-customize items from scratch.
+    """
+    index = request.form.get('index', type=int)
+    raw_notes = request.form.get('special_notes', '') or ''
+    special_notes = raw_notes.strip()[:MAX_NOTES_LENGTH]
+    cart = get_cart()
+
+    if index is not None and 0 <= index < len(cart):
+        cart[index]['special_notes'] = special_notes or None
+        session['cart'] = cart
+        session.modified = True
+
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': True,
+                'message': 'Special instructions updated.',
+                'index': index,
+                'special_notes': cart[index]['special_notes']
+            })
+
+        flash('Special instructions updated.', 'success')
+        return redirect(url_for('cart.index'))
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': False, 'message': 'Invalid cart item index.'}), 400
+
+    flash('Unable to update instructions for this item.', 'danger')
+    return redirect(url_for('cart.index'))
+
 @cart_bp.route('/clear', methods=['POST'])
 def clear_cart():
     session['cart'] = []

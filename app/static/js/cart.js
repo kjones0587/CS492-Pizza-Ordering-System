@@ -382,6 +382,112 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.error('Error removing item from cart:', err);
                     removeForm.submit(); // Graceful fallback to standard POST
                 });
+                return;
+            }
+
+            // Intercept inline special instructions update form submission (Task T1-03)
+            const noteForm = e.target.closest('.cart-inline-note-form');
+            if (noteForm) {
+                e.preventDefault();
+                const container = noteForm.closest('.cart-note-container');
+                const row = noteForm.closest('.cart-row');
+                const saveBtn = noteForm.querySelector('button[type="submit"]');
+                const origBtnText = saveBtn ? saveBtn.textContent : 'Save';
+                if (saveBtn) {
+                    saveBtn.disabled = true;
+                    saveBtn.textContent = '...';
+                }
+
+                const formData = new FormData(noteForm);
+
+                fetch(noteForm.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        const displayEl = container.querySelector('.cart-note-display');
+                        const addActionEl = container.querySelector('.cart-add-note-action');
+                        const formEl = container.querySelector('.cart-note-form');
+                        const textSpan = container.querySelector('.cart-note-text');
+                        const inputEl = container.querySelector('.cart-note-input');
+
+                        if (formEl) formEl.classList.add('d-none');
+
+                        if (data.special_notes && data.special_notes.trim().length > 0) {
+                            if (textSpan) textSpan.textContent = data.special_notes;
+                            if (displayEl) displayEl.classList.remove('d-none');
+                            if (addActionEl) addActionEl.classList.add('d-none');
+                            if (inputEl) inputEl.value = data.special_notes;
+                        } else {
+                            if (textSpan) textSpan.textContent = '';
+                            if (displayEl) displayEl.classList.add('d-none');
+                            if (addActionEl) addActionEl.classList.remove('d-none');
+                            if (inputEl) inputEl.value = '';
+                        }
+
+                        // Show quick toast notification
+                        showCartToast({
+                            item_name: row ? (row.querySelector('h6')?.textContent || 'Item') : 'Item',
+                            quantity: 1,
+                            message: 'Special instructions updated.'
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error('Error updating special instructions:', err);
+                    noteForm.submit(); // Graceful fallback
+                })
+                .finally(() => {
+                    if (saveBtn) {
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = origBtnText;
+                    }
+                });
+            }
+        });
+
+        // Intercept inline note editing toggle (Edit / Add / Cancel)
+        cartTableBody.addEventListener('click', (e) => {
+            const editBtn = e.target.closest('.btn-edit-note');
+            if (editBtn) {
+                const container = editBtn.closest('.cart-note-container');
+                if (container) {
+                    const displayEl = container.querySelector('.cart-note-display');
+                    const addActionEl = container.querySelector('.cart-add-note-action');
+                    const formEl = container.querySelector('.cart-note-form');
+                    const inputEl = container.querySelector('.cart-note-input');
+                    if (displayEl) displayEl.classList.add('d-none');
+                    if (addActionEl) addActionEl.classList.add('d-none');
+                    if (formEl) formEl.classList.remove('d-none');
+                    if (inputEl) {
+                        inputEl.focus();
+                        inputEl.select();
+                    }
+                }
+                return;
+            }
+
+            const cancelBtn = e.target.closest('.btn-cancel-note');
+            if (cancelBtn) {
+                const container = cancelBtn.closest('.cart-note-container');
+                if (container) {
+                    const displayEl = container.querySelector('.cart-note-display');
+                    const addActionEl = container.querySelector('.cart-add-note-action');
+                    const formEl = container.querySelector('.cart-note-form');
+                    const textSpan = container.querySelector('.cart-note-text');
+                    const inputEl = container.querySelector('.cart-note-input');
+                    if (formEl) formEl.classList.add('d-none');
+                    if (textSpan && textSpan.textContent.trim().length > 0) {
+                        if (displayEl) displayEl.classList.remove('d-none');
+                        if (inputEl) inputEl.value = textSpan.textContent.trim();
+                    } else {
+                        if (addActionEl) addActionEl.classList.remove('d-none');
+                        if (inputEl) inputEl.value = '';
+                    }
+                }
             }
         });
     }

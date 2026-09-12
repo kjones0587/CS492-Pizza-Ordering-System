@@ -454,5 +454,66 @@ def test_t1_03_catering_volume_fulfillment_estimates(client):
     assert 'High-Volume / Catering Order' in confirm_html
 
 
+def test_t1_03_cart_inline_note_update(client):
+    """T1-03: Validate inline special instructions editing directly from cart table."""
+    pizza = MenuItem.query.filter(MenuItem.category.has(slug='specialty-pizzas'), MenuItem.is_available == True).first()
+    assert pizza is not None
+
+    client.post('/cart/clear')
+    client.post('/cart/add', data={
+        'menu_item_id': pizza.id,
+        'quantity': 1,
+        'special_notes': 'Initial note'
+    })
+
+    # 1. Update note via AJAX
+    res = client.post('/cart/update-note', data={
+        'index': 0,
+        'special_notes': 'Well done crust with extra oregano on top'
+    }, headers={'X-Requested-With': 'XMLHttpRequest'})
+
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data['success'] is True
+    assert data['special_notes'] == 'Well done crust with extra oregano on top'
+
+    # Verify session persisted
+    with client.session_transaction() as sess:
+        assert sess['cart'][0]['special_notes'] == 'Well done crust with extra oregano on top'
+
+    # 2. Defensive truncation: 250 characters truncated to MAX_NOTES_LENGTH (200)
+    long_note = 'A' * 250
+    res_long = client.post('/cart/update-note', data={
+        'index': 0,
+        'special_notes': long_note
+    }, headers={'X-Requested-With': 'XMLHttpRequest'})
+    assert res_long.status_code == 200
+    data_long = res_long.get_json()
+    assert len(data_long['special_notes']) == 200
+
+    # 3. Clear note by sending empty string
+    res_clear = client.post('/cart/update-note', data={
+        'index': 0,
+        'special_notes': '   '
+    }, headers={'X-Requested-With': 'XMLHttpRequest'})
+    assert res_clear.status_code == 200
+    assert res_clear.get_json()['special_notes'] is None
+
+    # 4. Invalid index boundary test
+    res_invalid = client.post('/cart/update-note', data={
+        'index': 999,
+        'special_notes': 'Invalid item'
+    }, headers={'X-Requested-With': 'XMLHttpRequest'})
+    assert res_invalid.status_code == 400
+    assert res_invalid.get_json()['success'] is False
+
+    # 5. Verify cart.html template renders inline form hooks
+    cart_res = client.get('/cart/')
+    cart_html = cart_res.data.decode('utf-8')
+    assert 'cart-inline-note-form' in cart_html
+    assert 'cart-note-container' in cart_html
+
+
+
 
 

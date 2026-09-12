@@ -66,11 +66,29 @@
                                                         <span class="badge bg-light text-dark border me-1">{{ item.crust_option }}</span>
                                                     {% endif %}
                                                 </div>
-                                                {% if item.special_notes %}
-                                                <div class="small text-muted fst-italic mt-1">
-                                                    <i class="bi bi-card-text me-1"></i> "{{ item.special_notes }}"
+                                                <!-- Special Instructions & Inline Editor (Task T1-03: Kellen Jones) -->
+                                                <div class="cart-note-container mt-1">
+                                                    <div class="cart-note-display small text-muted fst-italic {% if not item.special_notes %}d-none{% endif %}">
+                                                        <i class="bi bi-chat-left-dots text-danger me-1"></i>
+                                                        "<span class="cart-note-text">{{ item.special_notes or '' }}</span>"
+                                                        <button type="button" class="btn btn-link btn-sm text-secondary p-0 ms-1 btn-edit-note" title="Edit instructions" style="font-size: 0.75rem; text-decoration: none;">
+                                                            <i class="bi bi-pencil-square"></i> Edit
+                                                        </button>
+                                                    </div>
+                                                    <div class="cart-add-note-action {% if item.special_notes %}d-none{% endif %}">
+                                                        <button type="button" class="btn btn-link btn-sm text-secondary p-0 btn-edit-note" style="font-size: 0.78rem; text-decoration: none;">
+                                                            <i class="bi bi-plus-circle me-1 text-danger"></i> Add note
+                                                        </button>
+                                                    </div>
+                                                    <div class="cart-note-form d-none mt-2">
+                                                        <form class="cart-inline-note-form d-flex gap-1 align-items-center" action="{{ url_for('cart.update_note') }}" method="POST">
+                                                            <input type="hidden" name="index" class="cart-input-index" value="{{ loop.index0 }}">
+                                                            <input type="text" name="special_notes" class="form-control form-control-sm cart-note-input py-1 px-2" maxlength="200" placeholder="e.g. Well done crust, light sauce..." value="{{ item.special_notes or '' }}" style="max-width: 220px; font-size: 0.8rem;">
+                                                            <button type="submit" class="btn btn-sm btn-pizza-primary py-0 px-2" style="font-size: 0.75rem; height: 28px;">Save</button>
+                                                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 btn-cancel-note" style="font-size: 0.75rem; height: 28px;">Cancel</button>
+                                                        </form>
+                                                    </div>
                                                 </div>
-                                                {% endif %}
                                             </div>
                                         </div>
                                     </td>
