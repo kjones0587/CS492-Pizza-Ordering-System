@@ -50,7 +50,7 @@
                             </thead>
                             <tbody id="cart-table-body">
                                 {% for item in cart %}
-                                <tr class="cart-row" data-index="{{ loop.index0 }}">
+                                <tr class="cart-row" data-index="{{ loop.index0 }}" data-menu-item-id="{{ item.menu_item_id }}" data-item-name="{{ item.name }}" data-size="{{ item.size_option or '' }}" data-crust="{{ item.crust_option or '' }}" data-quantity="{{ item.quantity }}" data-toppings='{{ (item.toppings or []) | tojson }}'>
                                     <td class="ps-4 py-3">
                                         <div class="d-flex align-items-center">
                                             {% if item.image_url %}
@@ -66,9 +66,21 @@
                                                         <span class="badge bg-light text-dark border me-1">{{ item.crust_option }}</span>
                                                     {% endif %}
                                                 </div>
-                                                {% if item.toppings %}
-                                                <div class="small text-muted mt-1">
-                                                    <i class="bi bi-plus-circle-fill text-danger me-1" style="font-size: 0.75rem;"></i><span class="fw-semibold text-dark">Toppings:</span> {{ item.toppings | join(', ') }}
+                                                <!-- Toppings Display & Edit Trigger (Task T1-03: Kellen Jones) -->
+                                                {% if item.size_option %}
+                                                <div class="cart-toppings-container mt-1">
+                                                    <div class="cart-toppings-display small text-muted {% if not item.toppings %}d-none{% endif %}">
+                                                        <i class="bi bi-plus-circle-fill text-danger me-1" style="font-size: 0.75rem;"></i><span class="fw-semibold text-dark">Toppings:</span> 
+                                                        <span class="cart-toppings-text">{{ item.toppings | join(', ') if item.toppings else '' }}</span>
+                                                        <button type="button" class="btn btn-link btn-sm text-secondary p-0 ms-1 btn-edit-toppings" title="Edit toppings" style="font-size: 0.75rem; text-decoration: none;">
+                                                            <i class="bi bi-pencil-square"></i> Edit
+                                                        </button>
+                                                    </div>
+                                                    <div class="cart-add-toppings-action {% if item.toppings %}d-none{% endif %}">
+                                                        <button type="button" class="btn btn-link btn-sm text-secondary p-0 btn-edit-toppings" style="font-size: 0.78rem; text-decoration: none;">
+                                                            <i class="bi bi-plus-circle me-1 text-danger"></i> Add toppings
+                                                        </button>
+                                                    </div>
                                                 </div>
                                                 {% endif %}
                                                 <!-- Special Instructions & Inline Editor (Task T1-03: Kellen Jones) -->
@@ -97,7 +109,7 @@
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="text-center fw-medium">${{ "%.2f"|format(item.unit_price) }}</td>
+                                    <td class="text-center fw-medium cart-unit-price">${{ "%.2f"|format(item.unit_price) }}</td>
                                     <td class="text-center">
                                         <!-- Quantity Controls with AJAX & Form Fallback (PB-03) -->
                                         <div class="d-inline-flex align-items-center border rounded-3 p-1 bg-white">
@@ -179,4 +191,8 @@
         </div>
     </div>
 </div>
+
+<!-- Reusable In-Cart Toppings Edit Modal (Task T1-03: Kellen Jones) -->
+{% include "partials/_modal_edit_toppings.html" %}
+
 {% endblock %}

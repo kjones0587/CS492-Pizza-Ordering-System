@@ -286,6 +286,95 @@ def update_note():
     flash('Unable to update instructions for this item.', 'danger')
     return redirect(url_for('cart.index'))
 
+@cart_bp.route('/update-toppings', methods=['POST'])
+def update_toppings():
+    """Task T1-03: Modify or remove toppings on an existing cart item in-place.
+    
+    Allows customers to add extra toppings or remove unwanted toppings directly
+    from the shopping cart view without having to delete and rebuild their pizza.
+    Recalculates item unit price, line totals, tax, and order totals in real time.
+    """
+    index = request.form.get('index', type=int)
+    cart = get_cart()
+
+    if index is None or index < 0 or index >= len(cart):
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'Invalid cart item index.'}), 400
+        flash('Invalid cart item.', 'danger')
+        return redirect(url_for('cart.index'))
+
+    cart_item = cart[index]
+    menu_item = db.session.get(MenuItem, cart_item.get('menu_item_id'))
+    if not menu_item:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'Menu item not found.'}), 400
+        flash('Menu item not found.', 'danger')
+        return redirect(url_for('cart.index'))
+
+    options = menu_item.get_options()
+    raw_toppings = request.form.getlist('toppings')
+    selected_toppings = [t.strip() for t in raw_toppings if t.strip()]
+
+    # Validate against allowed toppings defined in the menu item options
+    valid_toppings = []
+    toppings_modifier = 0.0
+    if selected_toppings and 'toppings' in options:
+        toppings_map = {t['name']: t.get('price_modifier', 0.0) for t in options['toppings']}
+        for top in selected_toppings:
+            if top in toppings_map:
+                valid_toppings.append(top)
+                toppings_modifier += toppings_map[top]
+    valid_toppings.sort()
+
+    # Recalculate unit price: base_price + size_modifier + crust_modifier + toppings_modifier
+    unit_price = menu_item.base_price
+    size_name = cart_item.get('size_option')
+    crust_name = cart_item.get('crust_option')
+
+    if size_name and 'sizes' in options:
+        for s in options['sizes']:
+            if s['name'] == size_name:
+                unit_price += s.get('price_modifier', 0.0)
+                break
+
+    if crust_name and 'crusts' in options:
+        for c in options['crusts']:
+            if c['name'] == crust_name:
+                unit_price += c.get('price_modifier', 0.0)
+                break
+
+    unit_price += toppings_modifier
+    unit_price = round(unit_price, 2)
+
+    quantity = cart_item.get('quantity', 1)
+    line_total = round(unit_price * quantity, 2)
+
+    # Update item in cart session
+    cart_item['toppings'] = valid_toppings
+    cart_item['unit_price'] = unit_price
+    cart_item['line_total'] = line_total
+
+    session['cart'] = cart
+    session.modified = True
+
+    totals = calculate_totals(cart, order_type=session.get('order_type', 'pickup'))
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'success': True,
+            'message': f"Toppings updated for {cart_item['name']}.",
+            'index': index,
+            'item_name': cart_item['name'],
+            'toppings': valid_toppings,
+            'unit_price': unit_price,
+            'quantity': quantity,
+            'line_total': line_total,
+            'totals': totals
+        })
+
+    flash(f"Toppings updated for {cart_item['name']}.", 'success')
+    return redirect(url_for('cart.index'))
+
 @cart_bp.route('/clear', methods=['POST'])
 def clear_cart():
     session['cart'] = []

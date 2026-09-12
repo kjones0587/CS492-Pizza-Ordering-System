@@ -1,0 +1,44 @@
+<!-- Edit Toppings Modal (Task T1-03: Kellen Jones) -->
+<div class="modal fade" id="editToppingsModal" tabindex="-1" aria-labelledby="editToppingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom-0 pb-0">
+                <div>
+                    <h5 class="modal-title fw-bold text-dark mb-1" id="edit-modal-item-name">Edit Toppings</h5>
+                    <div class="small text-secondary" id="edit-modal-options-summary">
+                        <span class="badge bg-light text-dark border me-1" id="edit-modal-size-badge"></span>
+                        <span class="badge bg-light text-dark border" id="edit-modal-crust-badge"></span>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="edit-toppings-form" action="{{ url_for('cart.update_toppings') }}" method="POST">
+                <input type="hidden" name="index" id="edit-toppings-item-index" value="0">
+                <div class="modal-body pt-3 pb-2">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label fw-bold text-dark mb-0">
+                            <i class="bi bi-plus-circle-dotted me-1 text-danger"></i> Select / Remove Toppings
+                        </label>
+                        <span class="badge bg-light text-secondary border fw-normal" id="edit-toppings-selected-count">0 selected</span>
+                    </div>
+                    <p class="text-muted small mb-3">Uncheck any toppings you want removed, or check extra toppings to add them to your pizza.</p>
+                    <div id="edit-toppings-container" class="row g-2 mb-3">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0 pt-0 pb-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted d-block">Updated Unit Price</small>
+                        <span class="fs-5 fw-bold text-danger" id="edit-modal-unit-price">$0.00</span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-secondary px-3 py-2" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-pizza-primary px-4 py-2" id="edit-toppings-save-btn">
+                            <i class="bi bi-check2-circle me-1"></i> Update Toppings
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

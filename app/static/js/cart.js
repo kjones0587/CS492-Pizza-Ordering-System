@@ -587,5 +587,222 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
+
+        // -------------------------------------------------------------------------
+        // In-Cart Pizza Toppings Edit Modal (Task T1-03: Kellen Jones)
+        // -------------------------------------------------------------------------
+        const editToppingsModalEl = document.getElementById('editToppingsModal');
+        if (editToppingsModalEl) {
+            const editToppingsModal = new bootstrap.Modal(editToppingsModalEl);
+            const editForm = document.getElementById('edit-toppings-form');
+            const editIndexInput = document.getElementById('edit-toppings-item-index');
+            const editItemName = document.getElementById('edit-modal-item-name');
+            const editSizeBadge = document.getElementById('edit-modal-size-badge');
+            const editCrustBadge = document.getElementById('edit-modal-crust-badge');
+            const editToppingsContainer = document.getElementById('edit-toppings-container');
+            const editSelectedCount = document.getElementById('edit-toppings-selected-count');
+            const editUnitPriceDisplay = document.getElementById('edit-modal-unit-price');
+            const editSaveBtn = document.getElementById('edit-toppings-save-btn');
+
+            let editBaseItemPrice = 0.0;
+            let editSizeModifier = 0.0;
+            let editCrustModifier = 0.0;
+            let activeRow = null;
+
+            function recalcEditToppingsPrice() {
+                let unitPrice = editBaseItemPrice + editSizeModifier + editCrustModifier;
+                const checkedBoxes = editToppingsContainer ? editToppingsContainer.querySelectorAll('input[name="toppings"]:checked') : [];
+                let count = 0;
+                checkedBoxes.forEach(cb => {
+                    count++;
+                    if (cb.dataset.modifier) {
+                        unitPrice += parseFloat(cb.dataset.modifier);
+                    }
+                });
+                if (editSelectedCount) {
+                    editSelectedCount.textContent = `${count} selected`;
+                    editSelectedCount.className = count > 0 ? 'badge bg-danger text-white border-0 fw-medium' : 'badge bg-light text-secondary border fw-normal';
+                }
+                if (editUnitPriceDisplay) {
+                    editUnitPriceDisplay.textContent = '$' + unitPrice.toFixed(2);
+                }
+            }
+
+            // Click listener for Edit/Add Toppings button in cart table
+            cartTableBody.addEventListener('click', (e) => {
+                const editToppingsBtn = e.target.closest('.btn-edit-toppings');
+                if (!editToppingsBtn) return;
+
+                activeRow = editToppingsBtn.closest('.cart-row');
+                if (!activeRow) return;
+
+                const index = activeRow.dataset.index;
+                const menuItemId = activeRow.dataset.menuItemId;
+                const itemName = activeRow.dataset.itemName || 'Pizza';
+                const sizeOption = activeRow.dataset.size || '';
+                const crustOption = activeRow.dataset.crust || '';
+                let currentToppings = [];
+                try {
+                    currentToppings = JSON.parse(activeRow.dataset.toppings || '[]');
+                } catch(err) {
+                    currentToppings = [];
+                }
+
+                editIndexInput.value = index;
+                editItemName.textContent = `Edit Toppings — ${itemName}`;
+                if (editSizeBadge) {
+                    editSizeBadge.textContent = sizeOption;
+                    editSizeBadge.style.display = sizeOption ? 'inline-block' : 'none';
+                }
+                if (editCrustBadge) {
+                    editCrustBadge.textContent = crustOption;
+                    editCrustBadge.style.display = crustOption ? 'inline-block' : 'none';
+                }
+
+                if (editToppingsContainer) {
+                    editToppingsContainer.innerHTML = '<div class="col-12 text-center py-3 text-muted"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Loading toppings...</div>';
+                }
+
+                editToppingsModal.show();
+
+                fetch(`/menu/item/${menuItemId}`)
+                    .then(r => r.json())
+                    .then(item => {
+                        editBaseItemPrice = item.base_price || 0.0;
+                        editSizeModifier = 0.0;
+                        editCrustModifier = 0.0;
+
+                        if (item.options && item.options.sizes) {
+                            const sizeObj = item.options.sizes.find(s => s.name === sizeOption);
+                            if (sizeObj) editSizeModifier = sizeObj.price_modifier || 0.0;
+                        }
+                        if (item.options && item.options.crusts) {
+                            const crustObj = item.options.crusts.find(c => c.name === crustOption);
+                            if (crustObj) editCrustModifier = crustObj.price_modifier || 0.0;
+                        }
+
+                        if (editToppingsContainer) editToppingsContainer.innerHTML = '';
+
+                        if (item.options && item.options.toppings && item.options.toppings.length > 0) {
+                            item.options.toppings.forEach((top, idx) => {
+                                const modVal = top.price_modifier || 0.0;
+                                const modText = modVal > 0 ? `+$${modVal.toFixed(2)}` : 'Free';
+                                const catBadge = top.category === 'Meats' ? 'bg-danger-subtle text-danger' :
+                                                 top.category === 'Cheese' ? 'bg-warning-subtle text-dark' : 'bg-success-subtle text-success';
+                                const isChecked = currentToppings.includes(top.name) ? 'checked' : '';
+
+                                editToppingsContainer.innerHTML += `
+                                    <div class="col-sm-6">
+                                        <label class="d-flex align-items-center justify-content-between p-2 rounded-3 border bg-white topping-card-label mb-0 w-100" for="edit_topping_${idx}" style="cursor: pointer;">
+                                            <div class="d-flex align-items-center">
+                                                <input class="form-check-input me-2 mt-0" type="checkbox" name="toppings" id="edit_topping_${idx}" value="${top.name}" data-modifier="${modVal}" ${isChecked}>
+                                                <span class="small fw-semibold text-dark">${top.name}</span>
+                                            </div>
+                                            <span class="badge ${catBadge} small fw-bold ms-1">${modText}</span>
+                                        </label>
+                                    </div>
+                                `;
+                            });
+
+                            editToppingsContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                                cb.addEventListener('change', recalcEditToppingsPrice);
+                            });
+                        } else {
+                            if (editToppingsContainer) {
+                                editToppingsContainer.innerHTML = '<div class="col-12 text-center py-3 text-muted">No toppings available for this item.</div>';
+                            }
+                        }
+
+                        recalcEditToppingsPrice();
+                    })
+                    .catch(err => {
+                        console.error('Error loading item toppings:', err);
+                        if (editToppingsContainer) {
+                            editToppingsContainer.innerHTML = '<div class="col-12 text-center py-3 text-danger">Failed to load toppings. Please try again.</div>';
+                        }
+                    });
+            });
+
+            // Handle AJAX submission of Edit Toppings form
+            if (editForm) {
+                editForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const origBtnHtml = editSaveBtn ? editSaveBtn.innerHTML : '';
+                    if (editSaveBtn) {
+                        editSaveBtn.disabled = true;
+                        editSaveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Saving...';
+                    }
+
+                    const formData = new FormData(editForm);
+
+                    fetch(editForm.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success && activeRow) {
+                            // Update active row data-toppings attribute
+                            activeRow.dataset.toppings = JSON.stringify(data.toppings);
+
+                            // Update row unit price & line total
+                            const unitPriceEl = activeRow.querySelector('.cart-unit-price');
+                            if (unitPriceEl) unitPriceEl.textContent = `$${data.unit_price.toFixed(2)}`;
+
+                            const lineTotalEl = activeRow.querySelector('.cart-row-total');
+                            if (lineTotalEl) lineTotalEl.textContent = `$${data.line_total.toFixed(2)}`;
+
+                            // Update toppings display in row
+                            const toppingsContainer = activeRow.querySelector('.cart-toppings-container');
+                            if (toppingsContainer) {
+                                const displayEl = toppingsContainer.querySelector('.cart-toppings-display');
+                                const addActionEl = toppingsContainer.querySelector('.cart-add-toppings-action');
+                                const textSpan = toppingsContainer.querySelector('.cart-toppings-text');
+
+                                if (data.toppings && data.toppings.length > 0) {
+                                    if (textSpan) textSpan.textContent = data.toppings.join(', ');
+                                    if (displayEl) displayEl.classList.remove('d-none');
+                                    if (addActionEl) addActionEl.classList.add('d-none');
+                                } else {
+                                    if (textSpan) textSpan.textContent = '';
+                                    if (displayEl) displayEl.classList.add('d-none');
+                                    if (addActionEl) addActionEl.classList.remove('d-none');
+                                }
+                            }
+
+                            // Update Order Summary card with recalculations
+                            if (data.totals) {
+                                updateCartSummary(data.totals);
+                            }
+
+                            editToppingsModal.hide();
+
+                            // Show contextual toast notification
+                            const hasToppings = data.toppings && data.toppings.length > 0;
+                            showCartToast({
+                                title: 'Toppings Updated!',
+                                item_name: data.item_name,
+                                message: hasToppings ? `Toppings updated: ${data.toppings.join(', ')}` : `All extra toppings removed from ${data.item_name}.`,
+                                icon: 'bi bi-check-circle-fill fs-5',
+                                iconBg: 'bg-primary'
+                            });
+                        } else {
+                            alert(data.message || 'Failed to update toppings.');
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error updating toppings:', err);
+                        editForm.submit(); // Graceful fallback
+                    })
+                    .finally(() => {
+                        if (editSaveBtn) {
+                            editSaveBtn.disabled = false;
+                            editSaveBtn.innerHTML = origBtnHtml;
+                        }
+                    });
+                });
+            }
+        }
     }
 });

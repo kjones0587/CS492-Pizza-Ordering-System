@@ -591,6 +591,80 @@ def test_t1_03_cart_topping_customization_and_pricing(client):
     assert '+ Toppings:' in staff_res.data.decode('utf-8')
 
 
+def test_t1_03_cart_inline_topping_update(client):
+    """T1-03: Validate in-cart pizza toppings editing and real-time price recalculation via AJAX."""
+    item = MenuItem.query.filter_by(name='Pepperoni Rustica').first()
+    assert item is not None
+
+    client.post('/cart/clear')
+    # 1. Add pizza with Large (+6.50), Stuffed Crust (+3.00), and 2 toppings: Pepperoni ($1.50) & Italian Sausage ($1.50)
+    # Unit price: 16.99 + 6.50 + 3.00 + 1.50 + 1.50 = 29.49, quantity 2 -> line total 58.98
+    client.post('/cart/add', data={
+        'menu_item_id': item.id,
+        'size_option': 'Large (16")',
+        'crust_option': 'Garlic Herb Stuffed Crust',
+        'toppings': ['Pepperoni', 'Italian Sausage'],
+        'quantity': 2
+    })
+
+    # 2. Modify toppings inline from cart via AJAX POST /cart/update-toppings
+    # Replace Pepperoni & Italian Sausage with Wisconsin Brick Cheese ($1.50) and Roasted Mushrooms ($1.00)
+    # New unit price: 16.99 + 6.50 + 3.00 + 1.50 + 1.00 = 28.99
+    res = client.post('/cart/update-toppings', data={
+        'index': 0,
+        'toppings': ['Wisconsin Brick Cheese', 'Roasted Mushrooms']
+    }, headers={'X-Requested-With': 'XMLHttpRequest'})
+
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data['success'] is True
+    assert 'Wisconsin Brick Cheese' in data['toppings']
+    assert 'Roasted Mushrooms' in data['toppings']
+    assert 'Pepperoni' not in data['toppings']
+    assert data['unit_price'] == 28.99
+    assert data['line_total'] == 57.98
+
+    # Verify session cart state
+    with client.session_transaction() as sess:
+        assert sess['cart'][0]['toppings'] == ['Roasted Mushrooms', 'Wisconsin Brick Cheese']
+        assert sess['cart'][0]['unit_price'] == 28.99
+
+    # 3. Verify /cart/ HTML page displays updated toppings and action buttons
+    cart_res = client.get('/cart/')
+    cart_html = cart_res.data.decode('utf-8')
+    assert 'Wisconsin Brick Cheese' in cart_html
+    assert 'Roasted Mushrooms' in cart_html
+    assert 'btn-edit-toppings' in cart_html
+    assert 'editToppingsModal' in cart_html
+
+    # 4. Remove all toppings (empty toppings list)
+    # Unit price without toppings: 16.99 + 6.50 + 3.00 = 26.49, quantity 2 -> line total 52.98
+    res_empty = client.post('/cart/update-toppings', data={
+        'index': 0
+    }, headers={'X-Requested-With': 'XMLHttpRequest'})
+
+    assert res_empty.status_code == 200
+    data_empty = res_empty.get_json()
+    assert data_empty['success'] is True
+    assert data_empty['toppings'] == []
+    assert data_empty['unit_price'] == 26.49
+    assert data_empty['line_total'] == 52.98
+
+    # Verify cart table displays "Add toppings" prompt when no toppings selected
+    cart_res_empty = client.get('/cart/')
+    cart_empty_html = cart_res_empty.data.decode('utf-8')
+    assert 'cart-add-toppings-action' in cart_empty_html
+    assert 'Add toppings' in cart_empty_html
+
+    # 5. Invalid item index boundary handling (returns 400 Bad Request)
+    res_invalid = client.post('/cart/update-toppings', data={
+        'index': 999
+    }, headers={'X-Requested-With': 'XMLHttpRequest'})
+    assert res_invalid.status_code == 400
+    assert res_invalid.get_json()['success'] is False
+
+
+
 
 
 
