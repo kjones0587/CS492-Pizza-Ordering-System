@@ -78,16 +78,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showCartToast(data) {
         if (!cartToastEl || !cartToastInstance) return;
+        const titleEl = document.getElementById('cart-toast-title');
         const msgEl = document.getElementById('cart-toast-message');
         const subtotalEl = document.getElementById('cart-toast-subtotal');
+        const viewCartBtn = document.getElementById('cart-toast-view-btn');
+        const iconWrapper = document.getElementById('cart-toast-icon-wrapper');
+        const iconEl = document.getElementById('cart-toast-icon');
+
+        const toastFooter = document.getElementById('cart-toast-footer');
+
+        const title = data.title || 'Added to Cart!';
         const qty = data.quantity || 1;
         const name = data.item_name || 'Item';
-        if (msgEl) {
-            msgEl.textContent = `${qty}x ${name} added to your order.`;
+        const message = data.message || `${qty}x ${name} added to your order.`;
+
+        if (titleEl) titleEl.textContent = title;
+        if (msgEl) msgEl.textContent = message;
+
+        if (iconEl) {
+            iconEl.className = data.icon || 'bi bi-cart-check-fill fs-5';
         }
-        if (subtotalEl && data.cart_subtotal !== undefined) {
-            subtotalEl.textContent = `Subtotal: $${data.cart_subtotal.toFixed(2)}`;
+
+        if (iconWrapper) {
+            iconWrapper.className = `rounded-circle p-2 d-flex align-items-center justify-content-center me-3 flex-shrink-0 text-white ${data.iconBg || 'bg-success'}`;
         }
+
+        let hasFooterContent = false;
+        if (subtotalEl) {
+            if (data.cart_subtotal !== undefined) {
+                subtotalEl.textContent = `Cart Subtotal: $${data.cart_subtotal.toFixed(2)}`;
+                subtotalEl.style.display = 'inline';
+                hasFooterContent = true;
+            } else {
+                subtotalEl.style.display = 'none';
+            }
+        }
+
+        // Contextually hide "View Cart" button if customer is already viewing /cart
+        if (viewCartBtn) {
+            if (window.location.pathname.startsWith('/cart')) {
+                viewCartBtn.style.display = 'none';
+            } else {
+                viewCartBtn.style.display = 'inline-flex';
+                hasFooterContent = true;
+            }
+        }
+
+        if (toastFooter) {
+            toastFooter.style.display = hasFooterContent ? 'flex' : 'none';
+        }
+
         cartToastInstance.show();
     }
 
@@ -428,11 +468,15 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (inputEl) inputEl.value = '';
                         }
 
-                        // Show quick toast notification
+                        // Show contextual toast notification
+                        const itemName = row ? (row.querySelector('h6')?.textContent?.trim() || 'Item') : 'Item';
+                        const hasNote = data.special_notes && data.special_notes.trim().length > 0;
                         showCartToast({
-                            item_name: row ? (row.querySelector('h6')?.textContent || 'Item') : 'Item',
-                            quantity: 1,
-                            message: 'Special instructions updated.'
+                            title: hasNote ? 'Special Note Updated!' : 'Note Removed',
+                            item_name: itemName,
+                            message: hasNote ? `"${data.special_notes}" saved for ${itemName}.` : `Special instructions removed for ${itemName}.`,
+                            icon: hasNote ? 'bi bi-chat-left-text-fill fs-5' : 'bi bi-dash-circle fs-5',
+                            iconBg: hasNote ? 'bg-primary' : 'bg-secondary'
                         });
                     }
                 })

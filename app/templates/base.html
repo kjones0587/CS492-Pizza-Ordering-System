@@ -120,8 +120,8 @@
     <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1090;">
         <div id="cart-toast" class="toast align-items-center text-bg-dark border-0 shadow-lg rounded-3" role="alert" aria-live="assertive" aria-atomic="true">
             <div class="d-flex align-items-start p-3">
-                <div class="bg-success text-white rounded-circle p-2 d-flex align-items-center justify-content-center me-3 flex-shrink-0" style="width: 38px; height: 38px;">
-                    <i class="bi bi-cart-check-fill fs-5"></i>
+                <div id="cart-toast-icon-wrapper" class="bg-success text-white rounded-circle p-2 d-flex align-items-center justify-content-center me-3 flex-shrink-0" style="width: 38px; height: 38px;">
+                    <i id="cart-toast-icon" class="bi bi-cart-check-fill fs-5"></i>
                 </div>
                 <div class="flex-grow-1 me-2">
                     <div class="d-flex align-items-center justify-content-between mb-1">
@@ -129,9 +129,9 @@
                         <small class="text-secondary">Just now</small>
                     </div>
                     <p class="small text-light text-opacity-75 mb-2" id="cart-toast-message"></p>
-                    <div class="d-flex align-items-center justify-content-between pt-2 border-top border-secondary border-opacity-50">
+                    <div id="cart-toast-footer" class="d-flex align-items-center justify-content-between pt-2 border-top border-secondary border-opacity-50">
                         <span class="small fw-semibold text-warning" id="cart-toast-subtotal"></span>
-                        <a href="{{ url_for('cart.index') }}" class="btn btn-sm btn-pizza-primary py-1 px-3 fw-semibold">
+                        <a id="cart-toast-view-btn" href="{{ url_for('cart.index') }}" class="btn btn-sm btn-pizza-primary py-1 px-3 fw-semibold">
                             View Cart <i class="bi bi-arrow-right ms-1"></i>
                         </a>
                     </div>
