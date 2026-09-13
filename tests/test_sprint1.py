@@ -288,7 +288,28 @@ def test_t1_03_cart_quantity_clamping_and_boundaries(client):
     }, follow_redirects=True)
     assert '1' in res_zero.data.decode('utf-8')
 
-    # Test 3: Updating quantity to 0 removes the line item
+    # Test 3: Direct quantity typing (e.g. setting 20 pizzas) via AJAX
+    client.post('/cart/clear')
+    client.post('/cart/add', data={'menu_item_id': item.id, 'quantity': 1})
+    res_set = client.post('/cart/update', data={
+        'index': 0,
+        'action': 'set',
+        'quantity': 20
+    }, headers={'X-Requested-With': 'XMLHttpRequest'})
+    assert res_set.status_code == 200
+    set_data = res_set.get_json()
+    assert set_data['success'] is True
+    assert set_data['cart'][0]['quantity'] == 20
+    assert set_data['cart'][0]['line_total'] == 299.80
+
+    # Verify cart template renders editable number input with min/max bounds
+    cart_page = client.get('/cart/')
+    cart_html = cart_page.data.decode('utf-8')
+    assert 'cart-qty-input' in cart_html
+    assert 'type="number"' in cart_html
+    assert 'value="20"' in cart_html
+
+    # Test 4: Updating quantity to 0 removes the line item
     res_remove = client.post('/cart/update', data={
         'index': 0,
         'action': 'set',

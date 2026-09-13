@@ -118,7 +118,19 @@
                                                 <input type="hidden" name="action" value="decrease">
                                                 <button type="submit" class="btn btn-sm btn-light qty-btn btn-qty-decrease" title="Decrease quantity">-</button>
                                             </form>
-                                            <span class="px-3 fw-bold cart-qty-text">{{ item.quantity }}</span>
+                                            <form action="{{ url_for('cart.update_item') }}" method="POST" class="d-inline cart-qty-form cart-qty-set-form m-0">
+                                                <input type="hidden" name="index" class="cart-input-index" value="{{ loop.index0 }}">
+                                                <input type="hidden" name="action" value="set">
+                                                <input type="number" 
+                                                       name="quantity" 
+                                                       class="form-control form-control-sm text-center fw-bold cart-qty-input cart-qty-text border-0 p-0 shadow-none" 
+                                                       min="1" 
+                                                       max="50" 
+                                                       value="{{ item.quantity }}" 
+                                                       data-original="{{ item.quantity }}"
+                                                       style="width: 44px; font-size: 0.95rem; background: transparent; font-weight: 700;"
+                                                       title="Click to type quantity (1-50)">
+                                            </form>
                                             <form action="{{ url_for('cart.update_item') }}" method="POST" class="d-inline cart-qty-form">
                                                 <input type="hidden" name="index" class="cart-input-index" value="{{ loop.index0 }}">
                                                 <input type="hidden" name="action" value="increase">

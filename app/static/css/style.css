@@ -436,6 +436,25 @@ footer a:hover {
   box-shadow: 0 0 0 1px var(--primary-pizza);
 }
 
+/* Editable Cart Quantity Input */
+.cart-qty-input::-webkit-outer-spin-button,
+.cart-qty-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.cart-qty-input {
+  -moz-appearance: textfield;
+  appearance: textfield;
+  color: #1e293b;
+  cursor: text;
+}
+
+.cart-qty-input:focus {
+  background-color: #f1f5f9 !important;
+  border-radius: 4px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

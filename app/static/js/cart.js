@@ -413,7 +413,41 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (cartTableBody) {
-        // Intercept quantity modifier form submissions (+ and -)
+        // Auto-select quantity input on focus so user can immediately type new number
+        cartTableBody.addEventListener('focusin', (e) => {
+            const qtyInput = e.target.closest('.cart-qty-input');
+            if (qtyInput) {
+                qtyInput.select();
+            }
+        });
+
+        // Trigger update when user finishes typing and blurs/changes quantity input
+        cartTableBody.addEventListener('change', (e) => {
+            const qtyInput = e.target.closest('.cart-qty-input');
+            if (qtyInput) {
+                let val = parseInt(qtyInput.value, 10);
+                const origVal = parseInt(qtyInput.dataset.original || qtyInput.defaultValue, 10);
+                if (isNaN(val) || val <= 0) {
+                    val = 1;
+                    qtyInput.value = 1;
+                } else if (val > 50) {
+                    val = 50;
+                    qtyInput.value = 50;
+                }
+                if (val !== origVal) {
+                    const form = qtyInput.closest('form');
+                    if (form) {
+                        if (typeof form.requestSubmit === 'function') {
+                            form.requestSubmit();
+                        } else {
+                            form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                        }
+                    }
+                }
+            }
+        });
+
+        // Intercept quantity modifier form submissions (+, -, and direct number input)
         cartTableBody.addEventListener('submit', (e) => {
             const qtyForm = e.target.closest('.cart-qty-form');
             if (qtyForm) {
@@ -421,6 +455,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const formData = new FormData(qtyForm);
                 const row = qtyForm.closest('.cart-row');
                 const rowIndex = parseInt(row.dataset.index, 10);
+
+                // If this is direct set form, clamp quantity defensively
+                const qtyInput = row.querySelector('.cart-qty-input');
+                if (qtyForm.classList.contains('cart-qty-set-form') && qtyInput) {
+                    let val = parseInt(qtyInput.value, 10);
+                    if (isNaN(val) || val <= 0) val = 1;
+                    else if (val > 50) val = 50;
+                    qtyInput.value = val;
+                    formData.set('quantity', val);
+                }
 
                 fetch(qtyForm.action, {
                     method: 'POST',
@@ -439,10 +483,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         } else {
                             // Update row quantity display and line total
                             const updatedItem = data.cart[rowIndex];
+                            const inputEl = row.querySelector('.cart-qty-input');
                             const qtySpan = row.querySelector('.cart-qty-text');
                             const totalCell = row.querySelector('.cart-row-total');
-                            if (qtySpan) qtySpan.textContent = updatedItem.quantity;
+                            if (inputEl) {
+                                inputEl.value = updatedItem.quantity;
+                                inputEl.dataset.original = updatedItem.quantity;
+                            }
+                            if (qtySpan && qtySpan.tagName !== 'INPUT') qtySpan.textContent = updatedItem.quantity;
                             if (totalCell) totalCell.textContent = '$' + updatedItem.line_total.toFixed(2);
+                            row.dataset.quantity = updatedItem.quantity;
                         }
                     }
                 })
