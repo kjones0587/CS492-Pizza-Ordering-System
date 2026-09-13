@@ -98,11 +98,21 @@
                                                         </button>
                                                     </div>
                                                     <div class="cart-note-form d-none mt-2">
-                                                        <form class="cart-inline-note-form d-flex gap-1 align-items-center" action="{{ url_for('cart.update_note') }}" method="POST">
+                                                        <form class="cart-inline-note-form" action="{{ url_for('cart.update_note') }}" method="POST">
                                                             <input type="hidden" name="index" class="cart-input-index" value="{{ loop.index0 }}">
-                                                            <input type="text" name="special_notes" class="form-control form-control-sm cart-note-input py-1 px-2" maxlength="200" placeholder="e.g. Well done crust, light sauce..." value="{{ item.special_notes or '' }}" style="max-width: 220px; font-size: 0.8rem;">
-                                                            <button type="submit" class="btn btn-sm btn-pizza-primary py-0 px-2" style="font-size: 0.75rem; height: 28px;">Save</button>
-                                                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 btn-cancel-note" style="font-size: 0.75rem; height: 28px;">Cancel</button>
+                                                            <div class="d-flex flex-column gap-2" style="max-width: 360px;">
+                                                                <textarea name="special_notes" 
+                                                                          class="form-control form-control-sm cart-note-input py-1 px-2" 
+                                                                          maxlength="200" 
+                                                                          rows="2" 
+                                                                          placeholder="e.g. Well done crust, light sauce, cut into squares..." 
+                                                                          style="width: 100%; font-size: 0.85rem; border-radius: 6px; resize: vertical;">{{ item.special_notes or '' }}</textarea>
+                                                                <div class="d-flex gap-2 align-items-center">
+                                                                    <button type="submit" class="btn btn-sm btn-pizza-primary py-1 px-3 fw-semibold" style="font-size: 0.78rem; height: 28px;">Save</button>
+                                                                    <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2 btn-cancel-note" style="font-size: 0.78rem; height: 28px;">Cancel</button>
+                                                                    <small class="text-muted ms-auto" style="font-size: 0.72rem;">Press Enter to save</small>
+                                                                </div>
+                                                            </div>
                                                         </form>
                                                     </div>
                                                 </div>

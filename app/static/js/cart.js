@@ -638,6 +638,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Save note on Enter key (without Shift) in note textarea
+        cartTableBody.addEventListener('keydown', (e) => {
+            const noteInput = e.target.closest('.cart-note-input');
+            if (noteInput && e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                const form = noteInput.closest('form');
+                if (form) {
+                    if (typeof form.requestSubmit === 'function') {
+                        form.requestSubmit();
+                    } else {
+                        form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                    }
+                }
+            }
+        });
+
         // -------------------------------------------------------------------------
         // In-Cart Pizza Toppings Edit Modal (Task T1-03: Kellen Jones)
         // -------------------------------------------------------------------------
