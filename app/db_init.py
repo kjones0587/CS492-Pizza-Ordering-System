@@ -1,5 +1,5 @@
 import json
-from app.models import db, Category, MenuItem
+from app.models import db, Category, MenuItem, Manager, PromoCode
 
 POPULAR_TOPPINGS = [
     {'name': 'Pepperoni', 'category': 'Meats', 'price_modifier': 1.50},
@@ -15,8 +15,47 @@ POPULAR_TOPPINGS = [
     {'name': 'Wisconsin Brick Cheese', 'category': 'Cheese', 'price_modifier': 1.50},
 ]
 
+def seed_sprint2_defaults():
+    """Seed default manager account and promo codes if they do not exist."""
+    try:
+        if Manager.query.first() is None:
+            mgr = Manager(
+                username='manager',
+                email='manager@bellanapolipizza.com',
+                role='Store Manager',
+                is_active=True
+            )
+            mgr.set_password('pizza123')
+            db.session.add(mgr)
+
+        if PromoCode.query.first() is None:
+            promo1 = PromoCode(
+                code='WELCOME10',
+                description='10% off your entire order',
+                discount_type='percent',
+                discount_value=10.0,
+                min_subtotal=0.0,
+                is_active=True
+            )
+            promo2 = PromoCode(
+                code='SAVE5',
+                description='$5.00 off orders $25 or more',
+                discount_type='fixed',
+                discount_value=5.0,
+                min_subtotal=25.0,
+                is_active=True
+            )
+            db.session.add(promo1)
+            db.session.add(promo2)
+
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
 def seed_database():
     """Seed initial categories and menu items if database is empty, or update existing item options."""
+    seed_sprint2_defaults()
+
     if Category.query.first() is not None:
         # Patch existing menu items if their toppings list differs from current POPULAR_TOPPINGS
         updated = False

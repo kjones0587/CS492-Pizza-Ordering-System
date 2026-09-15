@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
 import json
 
 db = SQLAlchemy()
@@ -77,6 +78,15 @@ class Order(db.Model):
     status = db.Column(db.String(30), nullable=False, default='Received')  # Received, Preparing, Ready, Completed, Cancelled
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
+    # Sprint 2 (PB-06 & PB-09): Payment details and discounts
+    payment_method = db.Column(db.String(30), nullable=False, default='credit_card')  # 'credit_card' or 'cash'
+    payment_status = db.Column(db.String(40), nullable=False, default='Paid')  # 'Paid', 'Pending (Due on Pickup/Delivery)', 'Failed'
+    card_brand = db.Column(db.String(30), nullable=True)  # 'Visa', 'Mastercard', 'American Express', 'Discover'
+    card_last4 = db.Column(db.String(4), nullable=True)  # Last 4 digits only (PCI compliant)
+    transaction_id = db.Column(db.String(64), nullable=True)  # Gateway reference e.g. TXN-20260916-XXXX
+    discount_amount = db.Column(db.Float, nullable=False, default=0.0)
+    promo_code = db.Column(db.String(30), nullable=True)
+
     items = db.relationship('OrderItem', backref='order', lazy=True, cascade="all, delete-orphan")
 
     def __repr__(self):
@@ -102,3 +112,58 @@ class OrderItem(db.Model):
 
     def __repr__(self):
         return f'<OrderItem {self.item_name} x{self.quantity}>'
+
+
+# =============================================================================
+# Sprint 2 Foundation Models
+# =============================================================================
+
+class Manager(db.Model):
+    """Store Manager & Staff Accounts for Authentication (PB-07: Michael Fabacher)"""
+    __tablename__ = 'managers'
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)
+    role = db.Column(db.String(32), default='Store Manager', nullable=False)  # 'Store Manager', 'Kitchen Staff'
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+    def __repr__(self):
+        return f'<Manager {self.username}>'
+
+
+class PromoCode(db.Model):
+    """Promotional Discount Codes & Coupons (PB-09: Nicholas Lattimore)"""
+    __tablename__ = 'promo_codes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(30), unique=True, nullable=False, index=True)
+    description = db.Column(db.String(120), nullable=True)
+    discount_type = db.Column(db.String(20), nullable=False, default='percent')  # 'percent' or 'fixed'
+    discount_value = db.Column(db.Float, nullable=False)  # e.g., 10.0 for 10% off or 5.0 for $5.00 off
+    min_subtotal = db.Column(db.Float, default=0.0, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    def calculate_discount(self, subtotal):
+        if not self.is_active or subtotal < self.min_subtotal:
+            return 0.0
+        if self.discount_type == 'percent':
+            discount = round(subtotal * (self.discount_value / 100.0), 2)
+        elif self.discount_type == 'fixed':
+            discount = min(round(self.discount_value, 2), subtotal)
+        else:
+            discount = 0.0
+        return discount
+
+    def __repr__(self):
+        return f'<PromoCode {self.code}>'
+

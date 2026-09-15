@@ -48,12 +48,24 @@ def create_app(config_class=Config):
     # Automatically create tables and seed on startup
     with app.app_context():
         db.create_all()
-        try:
-            with db.engine.connect() as conn:
-                conn.execute(text("ALTER TABLE order_items ADD COLUMN toppings VARCHAR(255)"))
-                conn.commit()
-        except Exception:
-            pass  # Column already exists or table freshly created
+        # Auto-patch schema for existing development databases
+        migration_statements = [
+            "ALTER TABLE order_items ADD COLUMN toppings VARCHAR(255)",
+            "ALTER TABLE orders ADD COLUMN payment_method VARCHAR(30) DEFAULT 'credit_card'",
+            "ALTER TABLE orders ADD COLUMN payment_status VARCHAR(40) DEFAULT 'Paid'",
+            "ALTER TABLE orders ADD COLUMN card_brand VARCHAR(30)",
+            "ALTER TABLE orders ADD COLUMN card_last4 VARCHAR(4)",
+            "ALTER TABLE orders ADD COLUMN transaction_id VARCHAR(64)",
+            "ALTER TABLE orders ADD COLUMN discount_amount FLOAT DEFAULT 0.0",
+            "ALTER TABLE orders ADD COLUMN promo_code VARCHAR(30)",
+        ]
+        with db.engine.connect() as conn:
+            for stmt in migration_statements:
+                try:
+                    conn.execute(text(stmt))
+                    conn.commit()
+                except Exception:
+                    pass  # Column already exists or freshly created
         seed_database()
 
     return app
