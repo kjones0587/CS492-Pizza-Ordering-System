@@ -23,6 +23,10 @@ def create_app(config_class=Config):
     app.register_blueprint(order_bp, url_prefix='/order')
     app.register_blueprint(staff_bp, url_prefix='/staff')
 
+    # Security Middleware & CSRF Protection (Task T2-10 / PB-11: Ayden Lotter)
+    from app.security import generate_csrf_token, validate_csrf
+    app.before_request(validate_csrf)
+
     # Context processors for all templates
     @app.context_processor
     def inject_global_data():
@@ -42,7 +46,8 @@ def create_app(config_class=Config):
         }
         return {
             'cart_count': cart_total_qty,
-            'restaurant': restaurant_info
+            'restaurant': restaurant_info,
+            'csrf_token': generate_csrf_token
         }
 
     # Automatically create tables and seed on startup
