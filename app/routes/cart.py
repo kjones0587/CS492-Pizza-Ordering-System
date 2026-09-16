@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, session, redirect, url_for, flash, jsonify, current_app
-from app.models import db, MenuItem
+from app.models import db, MenuItem, PromoCode
 
 cart_bp = Blueprint('cart', __name__)
 
@@ -54,19 +54,40 @@ def get_fulfillment_estimates(item_count):
             'notice': None
         }
 
-def calculate_totals(cart, order_type='pickup'):
-    """Compute subtotal, sales tax, delivery fee, grand total, and dynamic fulfillment estimates."""
+def calculate_totals(cart, order_type='pickup', promo_code=None):
+    """Compute subtotal, discounts, sales tax, delivery fee, grand total, and dynamic fulfillment estimates.
+    
+    Task T2-04 (PB-09: Nicholas Lattimore): Added promotional coupon discount calculation.
+    """
     item_count = sum(item.get('quantity', 1) for item in cart)
     subtotal = sum(item.get('unit_price', 0.0) * item.get('quantity', 1) for item in cart)
     subtotal = round(subtotal, 2)
+
+    # Promo Code Discount (PB-09: Nicholas Lattimore)
+    active_code = promo_code if promo_code is not None else session.get('promo_code')
+    discount_amount = 0.0
+    promo_desc = None
+    if active_code:
+        promo_obj = PromoCode.query.filter_by(code=active_code.strip().upper(), is_active=True).first()
+        if promo_obj and subtotal >= promo_obj.min_subtotal:
+            discount_amount = promo_obj.calculate_discount(subtotal)
+            promo_desc = promo_obj.description
+        elif promo_obj and subtotal < promo_obj.min_subtotal:
+            active_code = None
+
+    taxable_amount = max(0.0, round(subtotal - discount_amount, 2))
     tax_rate = current_app.config.get('TAX_RATE', 0.0825)
-    tax_amount = round(subtotal * tax_rate, 2)
+    tax_amount = round(taxable_amount * tax_rate, 2)
     delivery_fee = current_app.config.get('DELIVERY_FEE', 4.99) if order_type == 'delivery' else 0.0
-    total_amount = round(subtotal + tax_amount + delivery_fee, 2)
+    total_amount = round(taxable_amount + tax_amount + delivery_fee, 2)
     estimates = get_fulfillment_estimates(item_count)
     return {
         'subtotal': subtotal,
+        'discount_amount': discount_amount,
+        'promo_code': active_code if discount_amount > 0 else None,
+        'promo_description': promo_desc if discount_amount > 0 else None,
         'tax_rate': tax_rate,
+        'taxable_amount': taxable_amount,
         'tax_amount': tax_amount,
         'delivery_fee': delivery_fee,
         'total_amount': total_amount,
@@ -406,3 +427,71 @@ def calculate_api():
         'success': True,
         'totals': totals
     })
+
+@cart_bp.route('/apply-promo', methods=['POST'])
+def apply_promo():
+    """Task T2-04 (PB-09: Nicholas Lattimore): Validate and apply coupon code."""
+    code = request.form.get('promo_code', '').strip().upper()
+    cart = get_cart()
+    if not cart:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'Your cart is empty.'}), 400
+        flash('Your cart is empty.', 'warning')
+        return redirect(url_for('cart.index'))
+
+    if not code:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'Please enter a promo code.'}), 400
+        flash('Please enter a promo code.', 'warning')
+        return redirect(url_for('cart.checkout'))
+
+    promo = PromoCode.query.filter_by(code=code, is_active=True).first()
+    if not promo:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': f'Invalid or expired promo code "{code}".'}), 400
+        flash(f'Invalid or expired promo code "{code}".', 'danger')
+        return redirect(url_for('cart.checkout'))
+
+    subtotal = sum(item.get('unit_price', 0.0) * item.get('quantity', 1) for item in cart)
+    if subtotal < promo.min_subtotal:
+        msg = f'Promo code "{code}" requires a minimum subtotal of ${promo.min_subtotal:.2f}.'
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': msg}), 400
+        flash(msg, 'warning')
+        return redirect(url_for('cart.checkout'))
+
+    session['promo_code'] = code
+    session.modified = True
+
+    order_type = session.get('order_type', 'pickup')
+    totals = calculate_totals(cart, order_type=order_type, promo_code=code)
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'success': True,
+            'message': f'Promo code "{code}" applied! You saved ${totals["discount_amount"]:.2f}.',
+            'totals': totals
+        })
+
+    flash(f'Promo code "{code}" applied! You saved ${totals["discount_amount"]:.2f}.', 'success')
+    return redirect(url_for('cart.checkout'))
+
+@cart_bp.route('/remove-promo', methods=['POST'])
+def remove_promo():
+    """Task T2-04 (PB-09: Nicholas Lattimore): Remove active promo code."""
+    session.pop('promo_code', None)
+    session.modified = True
+    cart = get_cart()
+    order_type = session.get('order_type', 'pickup')
+    totals = calculate_totals(cart, order_type=order_type)
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'success': True,
+            'message': 'Promo code removed.',
+            'totals': totals
+        })
+
+    flash('Promo code removed.', 'info')
+    return redirect(url_for('cart.checkout'))
+
