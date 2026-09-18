@@ -151,12 +151,37 @@
                     </div>
                 </div>
 
+                <!-- Promo Code & Coupon Box (Task T2-04 / PB-09: Nicholas Lattimore) -->
+                <div class="mb-3 pt-2">
+                    <label class="form-label small text-uppercase fw-bold text-muted d-flex justify-content-between">
+                        <span>Have a Promo Code?</span>
+                        <span class="text-danger fw-semibold" style="cursor: pointer;" onclick="document.getElementById('promo-input').value='WELCOME10';">Try WELCOME10</span>
+                    </label>
+                    <div class="d-flex gap-2">
+                        <input type="text" class="form-control form-control-sm text-uppercase fw-bold" id="promo-input" placeholder="e.g. WELCOME10, SAVE5" value="{{ totals.promo_code or '' }}">
+                        <button type="button" class="btn btn-outline-danger btn-sm text-nowrap" id="promo-apply-btn" onclick="applyPromoCode()">
+                            Apply
+                        </button>
+                    </div>
+                    <div id="promo-feedback" class="small mt-1">
+                        {% if totals.discount_amount > 0 %}
+                            <span class="text-success"><i class="bi bi-tag-fill me-1"></i> Promo code <strong>{{ totals.promo_code }}</strong> applied!</span>
+                        {% endif %}
+                    </div>
+                </div>
+
                 <div class="receipt-divider"></div>
 
                 <!-- Calculation Rows (PB-04 Acceptance Criteria) -->
                 <div class="d-flex justify-content-between mb-2">
                     <span class="text-muted">Subtotal</span>
                     <span class="fw-bold text-dark" id="bill-subtotal">${{ "%.2f"|format(totals.subtotal) }}</span>
+                </div>
+
+                <!-- Discount Line Item (PB-09: Nicholas Lattimore) -->
+                <div class="d-flex justify-content-between mb-2 text-success" id="discount-row" style="{% if totals.discount_amount == 0 %}display: none;{% endif %}">
+                    <span><i class="bi bi-tag-fill me-1"></i> Discount (<span id="bill-promo-code">{{ totals.promo_code or '' }}</span>)</span>
+                    <span class="fw-bold" id="bill-discount">-${{ "%.2f"|format(totals.discount_amount) }}</span>
                 </div>
 
                 <div class="d-flex justify-content-between mb-2" id="delivery-fee-row" style="{% if totals.delivery_fee == 0 %}display: none;{% endif %}">
@@ -186,4 +211,65 @@
         </div>
     </div>
 </div>
+
+<script>
+// Task T2-04 (PB-09: Nicholas Lattimore) - Live Promo Code AJAX Application
+function applyPromoCode() {
+    const input = document.getElementById('promo-input');
+    const code = input ? input.value.trim().toUpperCase() : '';
+    const feedback = document.getElementById('promo-feedback');
+    const btn = document.getElementById('promo-apply-btn');
+
+    if (!code) {
+        if (feedback) feedback.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-circle me-1"></i>Please enter a promo code.</span>';
+        return;
+    }
+
+    if (btn) btn.disabled = true;
+    const formData = new FormData();
+    formData.append('promo_code', code);
+
+    fetch("{{ url_for('cart.apply_promo') }}", {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(res => res.json().then(data => ({ status: res.status, body: data })))
+    .then(({ status, body }) => {
+        if (btn) btn.disabled = false;
+        if (body.success) {
+            if (feedback) feedback.innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>${body.message}</span>`;
+            updateCheckoutTotals(body.totals);
+        } else {
+            if (feedback) feedback.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-circle me-1"></i>${body.message}</span>`;
+        }
+    })
+    .catch(() => {
+        if (btn) btn.disabled = false;
+        if (feedback) feedback.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Error applying promo code.</span>';
+    });
+}
+
+function updateCheckoutTotals(totals) {
+    if (!totals) return;
+    const subtotalEl = document.getElementById('bill-subtotal');
+    const taxEl = document.getElementById('bill-tax');
+    const totalEl = document.getElementById('bill-total');
+    const discountRow = document.getElementById('discount-row');
+    const discountEl = document.getElementById('bill-discount');
+    const promoCodeEl = document.getElementById('bill-promo-code');
+
+    if (subtotalEl) subtotalEl.textContent = `$${totals.subtotal.toFixed(2)}`;
+    if (taxEl) taxEl.textContent = `$${totals.tax_amount.toFixed(2)}`;
+    if (totalEl) totalEl.textContent = `$${totals.total_amount.toFixed(2)}`;
+
+    if (totals.discount_amount > 0 && discountRow) {
+        discountRow.style.display = 'flex';
+        if (discountEl) discountEl.textContent = `-$${totals.discount_amount.toFixed(2)}`;
+        if (promoCodeEl) promoCodeEl.textContent = totals.promo_code || '';
+    } else if (discountRow) {
+        discountRow.style.display = 'none';
+    }
+}
+</script>
 {% endblock %}
