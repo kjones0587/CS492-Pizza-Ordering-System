@@ -40,10 +40,23 @@
                         <a class="nav-link" href="{{ url_for('main.index') }}#hours-location"><i class="bi bi-geo-alt me-1"></i> Hours & Location</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('staff.orders') }}"><i class="bi bi-shield-lock me-1"></i> Staff Portal</a>
+                        {% if session.get('staff_user_id') %}
+                            <a class="nav-link text-success fw-bold" href="{{ url_for('staff.orders') }}">
+                                <i class="bi bi-shield-check me-1"></i> Staff Portal <span class="badge bg-success bg-opacity-25 text-success ms-1">{{ session.get('staff_username', 'Manager') }}</span>
+                            </a>
+                        {% else %}
+                            <a class="nav-link" href="{{ url_for('staff.login') }}">
+                                <i class="bi bi-shield-lock me-1"></i> Staff Portal
+                            </a>
+                        {% endif %}
                     </li>
                 </ul>
                 <div class="d-flex align-items-center gap-2">
+                    {% if session.get('staff_user_id') %}
+                        <a href="{{ url_for('staff.logout') }}" class="btn btn-outline-danger btn-sm d-none d-sm-inline-flex align-items-center" title="Sign out of staff portal">
+                            <i class="bi bi-box-arrow-right me-1"></i> Logout
+                        </a>
+                    {% endif %}
                     <a href="{{ url_for('cart.index') }}" class="btn btn-pizza-outline d-flex align-items-center position-relative">
                         <i class="bi bi-cart3 me-2 fs-5"></i>
                         <span>Cart</span>
