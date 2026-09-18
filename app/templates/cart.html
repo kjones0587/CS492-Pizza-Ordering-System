@@ -206,9 +206,11 @@
                     <i class="bi bi-info-circle me-1 text-primary"></i> Pickup & Delivery options and final bill calculation are confirmed in the next step.
                 </div>
 
-                <a href="{{ url_for('cart.checkout') }}" class="btn btn-pizza-primary btn-lg w-100 py-3 shadow-sm">
-                    Proceed to Review Bill <i class="bi bi-arrow-right ms-2"></i>
-                </a>
+                <div class="cart-checkout-action-wrap">
+                    <a href="{{ url_for('cart.checkout') }}" class="btn btn-pizza-primary btn-lg w-100 py-3 shadow-sm">
+                        Proceed to Review Bill <i class="bi bi-arrow-right ms-2"></i>
+                    </a>
+                </div>
             </div>
         </div>
     </div>
