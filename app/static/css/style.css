@@ -420,9 +420,13 @@ footer a:hover {
   background-color: #0f172a !important;
 }
 
+/* Customization Touch Targets (Task T2-01: Ayden Lotter) */
 .topping-card-label {
+  min-height: 46px;
+  padding: 0.65rem 0.85rem;
   transition: all 0.15s ease-in-out;
   border-color: #e2e8f0;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .topping-card-label:hover {
@@ -434,6 +438,98 @@ footer a:hover {
   border-color: var(--primary-pizza) !important;
   background-color: #fff7ed !important;
   box-shadow: 0 0 0 1px var(--primary-pizza);
+}
+
+/* Size & Crust Radio Cards for Touch Devices */
+#modal-sizes-container .form-check,
+#modal-crusts-container .form-check {
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  padding: 0.5rem 0.85rem 0.5rem 2.4rem;
+  margin-bottom: 0.5rem;
+  background-color: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#modal-sizes-container .form-check:hover,
+#modal-crusts-container .form-check:hover {
+  border-color: var(--primary-pizza);
+  background-color: #fffaf0;
+}
+
+#modal-sizes-container .form-check:has(input:checked),
+#modal-crusts-container .form-check:has(input:checked) {
+  border-color: var(--primary-pizza);
+  background-color: #fff7ed;
+  box-shadow: 0 0 0 1px var(--primary-pizza);
+}
+
+#modal-sizes-container .form-check-input,
+#modal-crusts-container .form-check-input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-left: -1.75rem;
+  margin-top: 0;
+  cursor: pointer;
+}
+
+/* Quantity Stepper Touch Sizing */
+.qty-btn {
+  min-width: 38px;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Mobile Responsive Polish (Task T2-01: Ayden Lotter) */
+@media (max-width: 768px) {
+  /* Prevent iOS Safari automatic zoom on focus by ensuring >= 16px font size */
+  input[type="text"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="email"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Smooth touch scrolling for horizontal tables */
+  .table-responsive {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Sticky checkout call-to-action on mobile viewports */
+  .cart-checkout-action-wrap {
+    position: sticky;
+    bottom: 0;
+    z-index: 1020;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 0.85rem 0 calc(0.85rem + env(safe-area-inset-bottom, 0px));
+    margin-top: 0.75rem;
+    border-top: 1px solid var(--border-subtle);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Expand touch target sizes for primary buttons */
+  .btn-pizza-primary,
+  .btn-outline-pizza {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
 /* Editable Cart Quantity Input */
