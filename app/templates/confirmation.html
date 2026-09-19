@@ -141,7 +141,7 @@
                     </div>
 
                     <!-- Action Buttons -->
-                    <div class="d-flex justify-content-between flex-wrap gap-2 pt-3 border-top">
+                    <div class="d-flex justify-content-between flex-wrap gap-2 pt-3 border-top d-print-none">
                         <button onclick="window.print()" class="btn btn-outline-secondary">
                             <i class="bi bi-printer me-1"></i> Print Receipt
                         </button>
@@ -154,4 +154,39 @@
         </div>
     </div>
 </div>
+
+<!-- Task T1-05: Michael Fabacher - Print-friendly Receipt Stylesheet -->
+<style>
+@media print {
+    nav, footer, .d-print-none, .alert-warning {
+        display: none !important;
+    }
+    body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-size: 11pt;
+    }
+    .container {
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    .bg-success {
+        background-color: transparent !important;
+        color: #000000 !important;
+        border-bottom: 2px solid #000000 !important;
+        padding: 1rem 0 !important;
+    }
+    .bg-success h1, .bg-success p {
+        color: #000000 !important;
+    }
+    .bg-white.bg-opacity-25 {
+        display: none !important;
+    }
+}
+</style>
 {% endblock %}
