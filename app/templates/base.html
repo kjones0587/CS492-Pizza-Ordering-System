@@ -39,17 +39,13 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.index') }}#hours-location"><i class="bi bi-geo-alt me-1"></i> Hours & Location</a>
                     </li>
+                    {% if session.get('staff_user_id') %}
                     <li class="nav-item">
-                        {% if session.get('staff_user_id') %}
-                            <a class="nav-link text-success fw-bold" href="{{ url_for('staff.orders') }}">
-                                <i class="bi bi-shield-check me-1"></i> Staff Portal <span class="badge bg-success bg-opacity-25 text-success ms-1">{{ session.get('staff_username', 'Manager') }}</span>
-                            </a>
-                        {% else %}
-                            <a class="nav-link" href="{{ url_for('staff.login') }}">
-                                <i class="bi bi-shield-lock me-1"></i> Staff Portal
-                            </a>
-                        {% endif %}
+                        <a class="nav-link text-success fw-bold" href="{{ url_for('staff.orders') }}">
+                            <i class="bi bi-shield-check me-1"></i> Staff Orders <span class="badge bg-success bg-opacity-25 text-success ms-1">{{ session.get('staff_username', 'Manager') }}</span>
+                        </a>
                     </li>
+                    {% endif %}
                 </ul>
                 <div class="d-flex align-items-center gap-2">
                     {% if session.get('staff_user_id') %}
@@ -148,17 +144,22 @@
                     </ul>
                 </div>
                 <div class="col-lg-4 col-md-12">
-                    <h5 class="text-white fw-bold mb-3">CS492 Capstone Project</h5>
-                    <p class="small text-secondary">
-                        Pizza Restaurant Online Ordering System developed for CS492 Capstone under Prof. Fadi Almasri.
+                    <h5 class="text-white fw-bold mb-3"><i class="bi bi-gear-fill text-warning me-2"></i>Store & Team Operations</h5>
+                    <p class="small text-secondary mb-3">
+                        Internal kitchen management, live order queue fulfillment, and staff administration.
                     </p>
-                    <div class="small text-secondary mt-3">
-                        <strong>Sprint 1 Delivery:</strong> PB-01 Restaurant Info, PB-02 Menu Browsing, PB-03 Cart Builder, PB-04 Bill Calculation, PB-05 Order Submission.
+                    <div class="mb-3">
+                        <a href="{{ url_for('staff.login') }}" class="btn btn-outline-light btn-sm rounded-pill px-3 py-1">
+                            <i class="bi bi-shield-lock me-1 text-warning"></i> Staff Portal Login
+                        </a>
+                    </div>
+                    <div class="small text-secondary">
+                        <span class="text-muted">Kitchen Crew & Manager Authorized Access</span>
                     </div>
                 </div>
             </div>
             <div class="border-top border-secondary border-opacity-25 pt-3 text-center small text-secondary">
-                &copy; 2026 {{ restaurant.name }}. All rights reserved. Team: Michael Fabacher, Kellen Jones, Ayden Lotter, Nicholas Lattimore.
+                &copy; 2026 {{ restaurant.name }}. All rights reserved. | CS492 Senior Capstone
             </div>
         </div>
     </footer>
