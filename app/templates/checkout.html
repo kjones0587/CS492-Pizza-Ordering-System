@@ -98,16 +98,16 @@
                                         <i class="bi bi-magic me-1"></i>Auto-Fill Demo Info
                                     </span>
                                 </label>
-                                <input type="text" class="form-control" id="customer_name" name="customer_name" placeholder="Jane Doe" required>
+                                <input type="text" class="form-control" id="customer_name" name="customer_name" placeholder="Jane Doe" value="{{ form_data.customer_name if form_data else '' }}" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="customer_email" class="form-label fw-bold">Email Address <span class="text-danger">*</span></label>
-                                <input type="email" class="form-control" id="customer_email" name="customer_email" placeholder="jane@example.com" required>
+                                <input type="email" class="form-control" id="customer_email" name="customer_email" placeholder="jane@example.com" value="{{ form_data.customer_email if form_data else '' }}" required>
                                 <div class="form-text">We'll send your receipt and tracking updates here.</div>
                             </div>
                             <div class="col-md-6">
                                 <label for="customer_phone" class="form-label fw-bold">Phone Number <span class="text-danger">*</span></label>
-                                <input type="tel" class="form-control" id="customer_phone" name="customer_phone" placeholder="(555) 000-0000" required>
+                                <input type="tel" class="form-control" id="customer_phone" name="customer_phone" placeholder="(555) 000-0000" value="{{ form_data.customer_phone if form_data else '' }}" required>
                                 <div class="form-text">In case our kitchen team has questions about your order.</div>
                             </div>
                         </div>
@@ -115,7 +115,7 @@
                         <!-- Delivery Address (Conditional) -->
                         <div class="mb-3" id="delivery-address-group" style="{% if order_type != 'delivery' %}display: none;{% endif %}">
                             <label for="delivery_address" class="form-label fw-bold">Delivery Address <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="delivery_address" name="delivery_address" placeholder="123 Main St, Apt 4B, City, ZIP">
+                            <input type="text" class="form-control" id="delivery_address" name="delivery_address" placeholder="123 Main St, Apt 4B, City, ZIP" value="{{ form_data.delivery_address if form_data else '' }}">
                             <div class="form-text text-muted">Delivery available within 5 miles of our campus location.</div>
                         </div>
 
@@ -127,7 +127,7 @@
                                     <i class="bi bi-pencil-square me-1"></i>Sample Note
                                 </span>
                             </label>
-                            <textarea class="form-control" id="special_instructions" name="special_instructions" rows="2" placeholder="e.g. Ring doorbell, leave at front desk, paper plates requested..."></textarea>
+                            <textarea class="form-control" id="special_instructions" name="special_instructions" rows="2" placeholder="e.g. Ring doorbell, leave at front desk, paper plates requested...">{{ form_data.special_instructions if form_data else '' }}</textarea>
                         </div>
 
                         <div class="pt-3 border-top">
@@ -183,9 +183,26 @@
 
                             <!-- Payment Options Toggle -->
                             <div id="payment-options-container" class="{% if totals.total_amount <= 0 %}d-none{% else %}d-block{% endif %}">
+                                <!-- Prominent Payment Error Alert in Step 2 -->
+                                {% if payment_error %}
+                                <div class="alert alert-danger border-danger border-2 p-3 rounded-4 mb-3 shadow-sm bg-white" style="border-left: 6px solid #dc3545 !important;">
+                                    <div class="d-flex align-items-center gap-2 text-danger fw-bold mb-1">
+                                        <i class="bi bi-x-octagon-fill fs-5"></i>
+                                        <span>Transaction Declined by Card Issuer</span>
+                                        <span class="badge bg-danger text-white ms-auto">Card Not Charged</span>
+                                    </div>
+                                    <div class="text-dark small mb-2 fw-semibold">
+                                        {{ payment_error }}
+                                    </div>
+                                    <div class="text-muted small">
+                                        <i class="bi bi-arrow-repeat me-1 text-primary"></i>Please enter an alternative card below, or select <strong>Cash / Counter</strong> to complete your order.
+                                    </div>
+                                </div>
+                                {% endif %}
+
                                 <div class="row g-2 mb-3">
                                     <div class="col-6">
-                                        <input type="radio" class="btn-check" name="payment_method" id="pay_credit" value="credit_card" checked onchange="togglePaymentMethod()">
+                                        <input type="radio" class="btn-check" name="payment_method" id="pay_credit" value="credit_card" {% if not form_data or form_data.payment_method != 'cash' %}checked{% endif %} onchange="togglePaymentMethod()">
                                         <label class="btn btn-outline-secondary w-100 p-3 text-start rounded-3 h-100 d-flex flex-column justify-content-between shadow-sm" for="pay_credit" id="pay_credit_label">
                                             <div class="d-flex justify-content-between align-items-center mb-1">
                                                 <span class="fw-bold text-dark"><i class="bi bi-credit-card-2-front text-danger me-1"></i> Credit / Debit</span>
@@ -195,7 +212,7 @@
                                         </label>
                                     </div>
                                     <div class="col-6">
-                                        <input type="radio" class="btn-check" name="payment_method" id="pay_cash" value="cash" onchange="togglePaymentMethod()">
+                                        <input type="radio" class="btn-check" name="payment_method" id="pay_cash" value="cash" {% if form_data and form_data.payment_method == 'cash' %}checked{% endif %} onchange="togglePaymentMethod()">
                                         <label class="btn btn-outline-secondary w-100 p-3 text-start rounded-3 h-100 d-flex flex-column justify-content-between shadow-sm" for="pay_cash" id="pay_cash_label">
                                             <div class="d-flex justify-content-between align-items-center mb-1">
                                                 <span class="fw-bold text-dark"><i class="bi bi-cash-stack text-success me-1"></i> Cash / Counter</span>
@@ -231,7 +248,7 @@
                                     <!-- Name on Card -->
                                     <div class="mb-3">
                                         <label for="name_on_card" class="form-label small fw-semibold text-dark mb-1">Name on Card <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="name_on_card" name="name_on_card" placeholder="e.g. Dr. Fadi Almasri" autocomplete="cc-name">
+                                        <input type="text" class="form-control" id="name_on_card" name="name_on_card" placeholder="e.g. Dr. Fadi Almasri" autocomplete="cc-name" value="{{ form_data.name_on_card if form_data else '' }}">
                                     </div>
 
                                     <!-- Card Number -->
@@ -256,7 +273,7 @@
                                         </div>
                                         <div class="col-4">
                                             <label for="billing_zip" class="form-label small fw-semibold text-dark mb-1">Billing ZIP <span class="text-danger">*</span></label>
-                                            <input type="text" class="form-control font-monospace" id="billing_zip" name="billing_zip" placeholder="90210" maxlength="5" autocomplete="postal-code">
+                                            <input type="text" class="form-control font-monospace" id="billing_zip" name="billing_zip" placeholder="90210" maxlength="5" autocomplete="postal-code" value="{{ form_data.billing_zip if form_data else '' }}">
                                         </div>
                                     </div>
                                 </div>

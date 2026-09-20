@@ -26,6 +26,24 @@ def submit_order():
     order_type = request.form.get('order_type', 'pickup').strip().lower()
     delivery_address = request.form.get('delivery_address', '').strip()
     special_instructions = request.form.get('special_instructions', '').strip()
+    payment_method = request.form.get('payment_method', 'cash').strip().lower()
+    cardholder_name = request.form.get('name_on_card', '').strip()
+    billing_zip = request.form.get('billing_zip', '').strip()
+
+    # Preserve customer inputs in session so data is retained on any failure or decline
+    session['checkout_form_data'] = {
+        'customer_name': customer_name,
+        'customer_email': customer_email,
+        'customer_phone': customer_phone,
+        'order_type': order_type,
+        'delivery_address': delivery_address,
+        'special_instructions': special_instructions,
+        'payment_method': payment_method,
+        'name_on_card': cardholder_name,
+        'billing_zip': billing_zip
+    }
+    session['order_type'] = order_type
+    session.modified = True
 
     errors = []
     if not customer_name:
@@ -49,7 +67,6 @@ def submit_order():
     total_amount = totals['total_amount']
 
     # Task T2-06 (PB-06: Online Payment Processing - Kellen Jones)
-    payment_method = request.form.get('payment_method', 'cash').strip().lower()
     card_brand = None
     card_last4 = None
     transaction_id = None
@@ -64,11 +81,9 @@ def submit_order():
         payment_status = 'Pending (Due on Pickup/Delivery)'
     elif payment_method == 'credit_card':
         from app.services.payment import process_mock_payment
-        cardholder_name = request.form.get('name_on_card', '').strip()
         card_number = request.form.get('card_number', '').strip()
         exp_date = request.form.get('exp_date', '').strip()
         cvv = request.form.get('cvv', '').strip()
-        billing_zip = request.form.get('billing_zip', '').strip()
 
         pay_res = process_mock_payment(
             amount=total_amount,
@@ -80,6 +95,9 @@ def submit_order():
         )
 
         if not pay_res['success']:
+            if 'checkout_form_data' in session:
+                session['checkout_form_data']['payment_error'] = pay_res['error']
+                session.modified = True
             flash(f"Payment Processing Error: {pay_res['error']}", 'danger')
             return redirect(url_for('cart.checkout'))
 
@@ -136,9 +154,10 @@ def submit_order():
 
     db.session.commit()
 
-    # Clear customer session cart and active promo
+    # Clear customer session cart, active promo, and preserved checkout form data
     session['cart'] = []
     session.pop('promo_code', None)
+    session.pop('checkout_form_data', None)
     session.modified = True
 
     return redirect(url_for('order.confirmation', order_number=order_num))

@@ -192,6 +192,7 @@ def test_order_submission_with_declined_card_fails(client, app):
         'customer_email': 'test@example.com',
         'customer_phone': '(555) 111-2222',
         'order_type': 'pickup',
+        'special_instructions': 'Extra crispy crust, ring bell please.',
         'payment_method': 'credit_card',
         'name_on_card': 'Jane Decline',
         'card_number': '4000 0000 0000 0002',
@@ -204,6 +205,16 @@ def test_order_submission_with_declined_card_fails(client, app):
     html = res.data.decode('utf-8')
     assert "Payment Processing Error" in html
     assert "Insufficient funds" in html
+    assert "Transaction Declined" in html
+    assert "Card Declined" in html
+
+    # Verify input data was strictly preserved in the form after card decline
+    assert 'value="Test User"' in html
+    assert 'value="test@example.com"' in html
+    assert 'value="(555) 111-2222"' in html
+    assert 'Extra crispy crust, ring bell please.' in html
+    assert 'value="Jane Decline"' in html
+    assert 'value="90210"' in html
 
     # Verify NO order was created
     with app.app_context():

@@ -421,6 +421,7 @@ def update_toppings():
 def clear_cart():
     session['cart'] = []
     session.pop('promo_code', None)
+    session.pop('checkout_form_data', None)
     session.modified = True
     flash('Your cart has been cleared.', 'info')
     return redirect(url_for('menu.index'))
@@ -433,9 +434,19 @@ def checkout():
         flash('Your cart is empty. Please add delicious items before reviewing your bill.', 'warning')
         return redirect(url_for('menu.index'))
 
-    order_type = session.get('order_type', 'pickup')
+    form_data = session.get('checkout_form_data', {})
+    order_type = form_data.get('order_type') or session.get('order_type', 'pickup')
+    payment_error = form_data.pop('payment_error', None)
+    session.modified = True
     totals = calculate_totals(cart, order_type=order_type)
-    return render_template('checkout.html', cart=cart, totals=totals, order_type=order_type)
+    return render_template(
+        'checkout.html',
+        cart=cart,
+        totals=totals,
+        order_type=order_type,
+        form_data=form_data,
+        payment_error=payment_error
+    )
 
 @cart_bp.route('/calculate-api', methods=['POST'])
 def calculate_api():
