@@ -81,6 +81,42 @@
                             </div>
                             {% endif %}
                         </div>
+                    <!-- Payment & Authorization Summary (Task T2-06 / PB-06: Kellen Jones) -->
+                    <div class="card border bg-light rounded-3 p-3 mb-4 shadow-sm">
+                        <div class="row align-items-center">
+                            <div class="col-sm-6 mb-2 mb-sm-0">
+                                <small class="text-muted text-uppercase fw-bold d-block mb-1">Payment Method</small>
+                                {% if order.payment_method == 'vip_pass' %}
+                                    <span class="fw-bold text-primary fs-6">
+                                        <i class="bi bi-mortarboard-fill me-1"></i> VIP Faculty Pass (Complimentary)
+                                    </span>
+                                {% elif order.payment_method == 'cash' %}
+                                    <span class="fw-bold text-dark fs-6">
+                                        <i class="bi bi-cash-stack text-success me-1"></i> Cash on {% if order.order_type == 'delivery' %}Delivery{% else %}Pickup Counter{% endif %}
+                                    </span>
+                                {% else %}
+                                    <span class="fw-bold text-dark fs-6">
+                                        <i class="bi bi-credit-card-2-front text-danger me-1"></i>
+                                        {{ order.card_brand or 'Card' }} ending in {{ order.card_last4 or '••••' }}
+                                    </span>
+                                {% endif %}
+                            </div>
+                            <div class="col-sm-6 text-sm-end">
+                                <small class="text-muted text-uppercase fw-bold d-block mb-1">Payment Status</small>
+                                {% if 'Paid' in order.payment_status %}
+                                    <span class="badge bg-success py-2 px-3 fs-6">
+                                        <i class="bi bi-check-circle-fill me-1"></i> {{ order.payment_status }}
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark py-2 px-3 fs-6">
+                                        <i class="bi bi-clock-history me-1"></i> {{ order.payment_status }}
+                                    </span>
+                                {% endif %}
+                                {% if order.transaction_id %}
+                                <div class="small text-muted font-monospace mt-1">Ref: {{ order.transaction_id }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Itemized Receipt -->

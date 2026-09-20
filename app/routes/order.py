@@ -46,6 +46,50 @@ def submit_order():
 
     # Calculate final certified bill totals
     totals = calculate_totals(cart, order_type=order_type)
+    total_amount = totals['total_amount']
+
+    # Task T2-06 (PB-06: Online Payment Processing - Kellen Jones)
+    payment_method = request.form.get('payment_method', 'cash').strip().lower()
+    card_brand = None
+    card_last4 = None
+    transaction_id = None
+    payment_status = 'Paid'
+
+    if total_amount <= 0.0:
+        # Full bill waived via promotional VIP pass (e.g. ALMASRI)
+        payment_method = 'vip_pass'
+        payment_status = 'Paid (Faculty Pass)'
+        transaction_id = f"TXN-VIP-{datetime.now(timezone.utc).strftime('%Y%m%d')}-0000"
+    elif payment_method == 'cash':
+        payment_status = 'Pending (Due on Pickup/Delivery)'
+    elif payment_method == 'credit_card':
+        from app.services.payment import process_mock_payment
+        cardholder_name = request.form.get('name_on_card', '').strip()
+        card_number = request.form.get('card_number', '').strip()
+        exp_date = request.form.get('exp_date', '').strip()
+        cvv = request.form.get('cvv', '').strip()
+        billing_zip = request.form.get('billing_zip', '').strip()
+
+        pay_res = process_mock_payment(
+            amount=total_amount,
+            card_number=card_number,
+            exp_date=exp_date,
+            cvv=cvv,
+            cardholder_name=cardholder_name,
+            billing_zip=billing_zip
+        )
+
+        if not pay_res['success']:
+            flash(f"Payment Processing Error: {pay_res['error']}", 'danger')
+            return redirect(url_for('cart.checkout'))
+
+        card_brand = pay_res['card_brand']
+        card_last4 = pay_res['card_last4']
+        transaction_id = pay_res['transaction_id']
+        payment_status = 'Paid'
+    else:
+        payment_method = 'cash'
+        payment_status = 'Pending (Due on Pickup/Delivery)'
 
     order_num = generate_order_number()
     new_order = Order(
@@ -63,7 +107,12 @@ def submit_order():
         discount_amount=totals['discount_amount'],
         promo_code=totals['promo_code'],
         status='Received',
-        created_at=datetime.now(timezone.utc)
+        created_at=datetime.now(timezone.utc),
+        payment_method=payment_method,
+        payment_status=payment_status,
+        card_brand=card_brand,
+        card_last4=card_last4,
+        transaction_id=transaction_id
     )
 
     db.session.add(new_order)

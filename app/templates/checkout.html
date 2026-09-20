@@ -68,7 +68,12 @@
                     <!-- Contact Details -->
                     <div class="row g-3 mb-3">
                         <div class="col-12">
-                            <label for="customer_name" class="form-label fw-bold">Full Name <span class="text-danger">*</span></label>
+                            <label for="customer_name" class="form-label fw-bold d-flex justify-content-between align-items-center">
+                                <span>Full Name <span class="text-danger">*</span></span>
+                                <span class="text-danger small fw-semibold user-select-none" style="cursor: pointer; font-size: 0.825rem;" onclick="fillCustomerDemo()" title="One-click autofill demo customer contact details">
+                                    <i class="bi bi-magic me-1"></i>Auto-Fill Demo Info
+                                </span>
+                            </label>
                             <input type="text" class="form-control" id="customer_name" name="customer_name" placeholder="Jane Doe" required>
                         </div>
                         <div class="col-md-6">
@@ -92,14 +97,128 @@
 
                     <!-- Special Instructions -->
                     <div class="mb-4">
-                        <label for="special_instructions" class="form-label fw-bold">Order or Delivery Instructions</label>
+                        <label for="special_instructions" class="form-label fw-bold d-flex justify-content-between align-items-center">
+                            <span>Order or Delivery Instructions</span>
+                            <span class="text-danger small fw-semibold user-select-none" style="cursor: pointer; font-size: 0.825rem;" onclick="fillInstructionsDemo()" title="One-click autofill sample instructions">
+                                <i class="bi bi-pencil-square me-1"></i>Sample Note
+                            </span>
+                        </label>
                         <textarea class="form-control" id="special_instructions" name="special_instructions" rows="2" placeholder="e.g. Ring doorbell, leave at front desk, paper plates requested..."></textarea>
                     </div>
 
-                    <!-- Terms & Order Submission Note -->
-                    <div class="alert alert-light border small text-muted mb-4">
-                        <i class="bi bi-shield-check text-success me-1"></i>
-                        <strong>Sprint 1 Notice:</strong> In this sprint phase, orders are placed directly with the kitchen for on-site or upon-delivery payment (Online credit card processing unlocks in Sprint 2).
+                    <!-- Payment Method & Card Details (Task T2-06 / PB-06: Kellen Jones) -->
+                    <div class="mb-4 pt-2 border-top">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label fw-bold mb-0 fs-5">
+                                <i class="bi bi-wallet2 text-danger me-2"></i>Payment Method
+                            </label>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 small">
+                                <i class="bi bi-shield-lock-fill me-1"></i> 256-Bit SSL Encrypted
+                            </span>
+                        </div>
+
+                        <!-- VIP Complimentary Waiver (Active when Total is $0.00 / ALMASRI) -->
+                        <div id="vip-payment-waiver" class="{% if totals.total_amount <= 0 %}d-block{% else %}d-none{% endif %} alert alert-success border-success p-3 rounded-3 shadow-sm mb-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="fs-3">🎓🍕</span>
+                                <div>
+                                    <strong class="text-success d-block fs-6">Complimentary Faculty VIP Pass Active</strong>
+                                    <small class="text-dark">Your total balance is <strong>$0.00</strong>. No card or cash payment is required!</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Payment Options Toggle -->
+                        <div id="payment-options-container" class="{% if totals.total_amount <= 0 %}d-none{% else %}d-block{% endif %}">
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <input type="radio" class="btn-check" name="payment_method" id="pay_credit" value="credit_card" checked onchange="togglePaymentMethod()">
+                                    <label class="btn btn-outline-secondary w-100 p-3 text-start rounded-3 h-100 d-flex flex-column justify-content-between shadow-sm" for="pay_credit" id="pay_credit_label">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="fw-bold text-dark"><i class="bi bi-credit-card-2-front text-danger me-1"></i> Credit / Debit</span>
+                                            <i class="bi bi-check-circle-fill text-danger" id="credit-check-icon"></i>
+                                        </div>
+                                        <small class="text-muted">Instant online authorization</small>
+                                    </label>
+                                </div>
+                                <div class="col-6">
+                                    <input type="radio" class="btn-check" name="payment_method" id="pay_cash" value="cash" onchange="togglePaymentMethod()">
+                                    <label class="btn btn-outline-secondary w-100 p-3 text-start rounded-3 h-100 d-flex flex-column justify-content-between shadow-sm" for="pay_cash" id="pay_cash_label">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="fw-bold text-dark"><i class="bi bi-cash-stack text-success me-1"></i> Cash / Counter</span>
+                                            <i class="bi bi-check-circle-fill text-success d-none" id="cash-check-icon"></i>
+                                        </div>
+                                        <small class="text-muted">Pay on delivery or pickup</small>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Credit Card Input Card -->
+                            <div id="credit-card-fields" class="card border rounded-3 bg-light p-3 mb-3 shadow-sm">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="small text-uppercase fw-bold text-muted">Cardholder Information</span>
+                                    <div class="d-flex gap-1" id="card-brand-badges">
+                                        <span class="badge bg-white text-secondary border font-monospace" id="brand-badge-visa">VISA</span>
+                                        <span class="badge bg-white text-secondary border font-monospace" id="brand-badge-mastercard">MC</span>
+                                        <span class="badge bg-white text-secondary border font-monospace" id="brand-badge-amex">AMEX</span>
+                                        <span class="badge bg-white text-secondary border font-monospace" id="brand-badge-discover">DISC</span>
+                                    </div>
+                                </div>
+
+                                <!-- Presentation Demo 1-Click Helpers -->
+                                <div class="d-flex flex-wrap gap-2 mb-3">
+                                    <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2 rounded-pill small" onclick="fillDemoCard('valid')">
+                                        <i class="bi bi-lightning-charge-fill me-1"></i> Auto-Fill Demo Visa
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2 rounded-pill small" onclick="fillDemoCard('decline')">
+                                        <i class="bi bi-exclamation-octagon me-1"></i> Test Decline Card
+                                    </button>
+                                </div>
+
+                                <!-- Name on Card -->
+                                <div class="mb-3">
+                                    <label for="name_on_card" class="form-label small fw-semibold text-dark mb-1">Name on Card <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="name_on_card" name="name_on_card" placeholder="e.g. Dr. Fadi Almasri" autocomplete="cc-name">
+                                </div>
+
+                                <!-- Card Number -->
+                                <div class="mb-3">
+                                    <label for="card_number" class="form-label small fw-semibold text-dark mb-1">Card Number <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-credit-card text-muted" id="card-icon"></i></span>
+                                        <input type="text" class="form-control font-monospace border-start-0" id="card_number" name="card_number" placeholder="4xxx xxxx xxxx xxxx" maxlength="19" autocomplete="cc-number" oninput="handleCardNumberInput(this)">
+                                    </div>
+                                    <div class="form-text small text-muted">Modulo 10 Luhn validated • Strictly zero PAN storage</div>
+                                </div>
+
+                                <!-- Expiry, CVV, and Billing Zip -->
+                                <div class="row g-2">
+                                    <div class="col-5">
+                                        <label for="exp_date" class="form-label small fw-semibold text-dark mb-1">Expires <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control font-monospace" id="exp_date" name="exp_date" placeholder="MM/YY" maxlength="5" autocomplete="cc-exp" oninput="handleExpiryInput(this)">
+                                    </div>
+                                    <div class="col-3">
+                                        <label for="cvv" class="form-label small fw-semibold text-dark mb-1">CVV <span class="text-danger">*</span></label>
+                                        <input type="password" class="form-control font-monospace" id="cvv" name="cvv" placeholder="123" maxlength="4" autocomplete="cc-csc">
+                                    </div>
+                                    <div class="col-4">
+                                        <label for="billing_zip" class="form-label small fw-semibold text-dark mb-1">Billing ZIP <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control font-monospace" id="billing_zip" name="billing_zip" placeholder="90210" maxlength="5" autocomplete="postal-code">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Cash Instructions -->
+                            <div id="cash-payment-fields" class="d-none alert alert-light border p-3 rounded-3 mb-3">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-cash-coin fs-3 text-success"></i>
+                                    <div>
+                                        <strong class="text-dark d-block">Pay upon Delivery or Pickup</strong>
+                                        <small class="text-muted">Exact cash is appreciated. Our drivers carry up to $20 in change.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <button type="submit" class="btn btn-pizza-primary btn-lg w-100 py-3 fs-5 shadow">
@@ -390,6 +509,356 @@ function updateCheckoutTotals(totals) {
             if (promoCodeEl) promoCodeEl.textContent = '';
         }
     }
+
+    // Task T2-06 (PB-06: Kellen Jones) - Update VIP Payment Waiver vs Card/Cash Options
+    const vipWaiver = document.getElementById('vip-payment-waiver');
+    const paymentOptions = document.getElementById('payment-options-container');
+    if (totals.total_amount <= 0) {
+        if (vipWaiver) {
+            vipWaiver.classList.remove('d-none');
+            vipWaiver.classList.add('d-block');
+        }
+        if (paymentOptions) {
+            paymentOptions.classList.remove('d-block');
+            paymentOptions.classList.add('d-none');
+        }
+    } else {
+        if (vipWaiver) {
+            vipWaiver.classList.remove('d-block');
+            vipWaiver.classList.add('d-none');
+        }
+        if (paymentOptions) {
+</div>
+</div>
+
+<!-- VIP Faculty Modal (Easter Egg Promo Code: ALMASRI) -->
+<div class="modal fade" id="vipModal" tabindex="-1" aria-labelledby="vipModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden text-center">
+            <div class="modal-header border-0 text-white py-4 justify-content-center position-relative" style="background: linear-gradient(135deg, #b02a37 0%, #dc3545 50%, #fd7e14 100%);">
+                <div>
+                    <div style="font-size: 3.5rem; line-height: 1;" class="mb-2">🎓🍕🎉</div>
+                    <h3 class="modal-title fw-bold text-white mb-0" id="vipModalLabel">VIP Faculty Pass Activated!</h3>
+                    <span class="badge bg-warning text-dark fw-bold px-3 py-1 mt-2 text-uppercase">Honorary Lifetime Dining Pass</span>
+                </div>
+                <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 py-4">
+                <h5 class="fw-bold text-danger mb-2">"Professor always eats free at Bella Napoli!"</h5>
+                <p class="text-muted mb-3">
+                    Special Capstone VIP Perk: Dr. Almasri, your full tab, including hand-tossed artisan pizzas, sides, taxes, and delivery fees, is completely on the house!
+                </p>
+                <div class="bg-light rounded-3 p-3 mb-3 border">
+                    <div class="d-flex justify-content-between text-muted small mb-1">
+                        <span>Faculty Discount Rate:</span>
+                        <strong class="text-success">100% OFF</strong>
+                    </div>
+                    <div class="d-flex justify-content-between text-muted small mb-1">
+                        <span>Tax & Delivery Fee:</span>
+                        <strong class="text-success">$0.00 (Waived)</strong>
+                    </div>
+                    <hr class="my-2">
+                    <div class="d-flex justify-content-between fs-5 fw-bold text-dark">
+                        <span>Total Due:</span>
+                        <span class="text-success fs-4">$0.00</span>
+                    </div>
+                </div>
+                <div class="text-muted small fst-italic">
+                    Grazie mille for guiding our CS492 Capstone team this session! 🍕
+                </div>
+            </div>
+            <div class="modal-footer border-0 bg-light justify-content-center py-3">
+                <button type="button" class="btn btn-danger btn-lg px-4 rounded-pill fw-bold shadow-sm" data-bs-dismiss="modal">
+                    Claim Free Pizza! 🎉
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Task T2-04 (PB-09: Nicholas Lattimore) - Live Promo Code AJAX Application
+function applyPromoCode() {
+    const input = document.getElementById('promo-input');
+    const code = input ? input.value.trim().toUpperCase() : '';
+    const feedback = document.getElementById('promo-feedback');
+    const btn = document.getElementById('promo-apply-btn');
+
+    if (!code) {
+        if (feedback) feedback.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-circle me-1"></i>Please enter a promo code.</span>';
+        return;
+    }
+
+    if (btn) btn.disabled = true;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const formData = new FormData();
+    formData.append('promo_code', code);
+    if (csrfToken) formData.append('csrf_token', csrfToken);
+
+    fetch("{{ url_for('cart.apply_promo') }}", {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrfToken || ''
+        }
+    })
+    .then(res => res.json().then(data => ({ status: res.status, body: data })))
+    .then(({ status, body }) => {
+        if (btn) btn.disabled = false;
+        if (body.success) {
+            if (feedback) {
+                feedback.innerHTML = `
+                    <div class="d-flex align-items-center justify-content-between text-success">
+                        <span><i class="bi bi-check-circle-fill me-1"></i>${body.message}</span>
+                        <button type="button" class="btn btn-link btn-sm text-danger p-0 text-decoration-none ms-2" onclick="removePromoCode()" title="Remove promo code">
+                            <i class="bi bi-x-circle-fill"></i> Remove
+                        </button>
+                    </div>`;
+            }
+            updateCheckoutTotals(body.totals);
+
+            // Easter Egg VIP Faculty Modal Trigger (ALMASRI)
+            if (body.is_vip || code === 'ALMASRI') {
+                const modalEl = document.getElementById('vipModal');
+                if (modalEl && typeof bootstrap !== 'undefined') {
+                    const vipModal = new bootstrap.Modal(modalEl);
+                    vipModal.show();
+                }
+            }
+        } else {
+            if (feedback) feedback.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-circle me-1"></i>${body.message}</span>`;
+        }
+    })
+    .catch((err) => {
+        if (btn) btn.disabled = false;
+        console.error('Error applying promo code:', err);
+        if (feedback) feedback.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Error applying promo code.</span>';
+    });
 }
+
+function removePromoCode() {
+    const feedback = document.getElementById('promo-feedback');
+    const input = document.getElementById('promo-input');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const formData = new FormData();
+    if (csrfToken) formData.append('csrf_token', csrfToken);
+
+    fetch("{{ url_for('cart.remove_promo') }}", {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrfToken || ''
+        }
+    })
+    .then(res => res.json().then(data => ({ status: res.status, body: data })))
+    .then(({ status, body }) => {
+        if (body.success) {
+            if (input) input.value = '';
+            if (feedback) feedback.innerHTML = '<span class="text-muted"><i class="bi bi-info-circle me-1"></i>Promo code removed.</span>';
+            updateCheckoutTotals(body.totals);
+        }
+    })
+    .catch((err) => {
+        console.error('Error removing promo code:', err);
+    });
+}
+
+function updateCheckoutTotals(totals) {
+    if (!totals) return;
+    const subtotalEl = document.getElementById('bill-subtotal');
+    const taxEl = document.getElementById('bill-tax');
+    const totalEl = document.getElementById('bill-total');
+    const discountRow = document.getElementById('discount-row');
+    const discountEl = document.getElementById('bill-discount');
+    const promoCodeEl = document.getElementById('bill-promo-code');
+    const deliveryFeeRow = document.getElementById('delivery-fee-row');
+    const deliveryFeeEl = document.getElementById('bill-delivery-fee');
+
+    if (subtotalEl) subtotalEl.textContent = `$${totals.subtotal.toFixed(2)}`;
+    if (taxEl) taxEl.textContent = `$${totals.tax_amount.toFixed(2)}`;
+    if (totalEl) totalEl.textContent = `$${totals.total_amount.toFixed(2)}`;
+    if (deliveryFeeEl) deliveryFeeEl.textContent = `$${totals.delivery_fee.toFixed(2)}`;
+
+    if (deliveryFeeRow) {
+        if (totals.delivery_fee > 0) {
+            deliveryFeeRow.classList.remove('d-none');
+            deliveryFeeRow.classList.add('d-flex');
+        } else {
+            deliveryFeeRow.classList.remove('d-flex');
+            deliveryFeeRow.classList.add('d-none');
+        }
+    }
+
+    if (discountRow) {
+        if (totals.discount_amount > 0) {
+            discountRow.classList.remove('d-none');
+            discountRow.classList.add('d-flex');
+            if (discountEl) discountEl.textContent = `-$${totals.discount_amount.toFixed(2)}`;
+            if (promoCodeEl) promoCodeEl.textContent = totals.promo_code || '';
+        } else {
+            discountRow.classList.remove('d-flex');
+            discountRow.classList.add('d-none');
+            if (discountEl) discountEl.textContent = '-$0.00';
+            if (promoCodeEl) promoCodeEl.textContent = '';
+        }
+    }
+
+    // Task T2-06 (PB-06: Kellen Jones) - Update VIP Payment Waiver vs Card/Cash Options
+    const vipWaiver = document.getElementById('vip-payment-waiver');
+    const paymentOptions = document.getElementById('payment-options-container');
+    if (totals.total_amount <= 0) {
+        if (vipWaiver) {
+            vipWaiver.classList.remove('d-none');
+            vipWaiver.classList.add('d-block');
+        }
+        if (paymentOptions) {
+            paymentOptions.classList.remove('d-block');
+            paymentOptions.classList.add('d-none');
+        }
+    } else {
+        if (vipWaiver) {
+            vipWaiver.classList.remove('d-block');
+            vipWaiver.classList.add('d-none');
+        }
+        if (paymentOptions) {
+            paymentOptions.classList.remove('d-none');
+            paymentOptions.classList.add('d-block');
+        }
+    }
+}
+
+// Task T2-06 (PB-06: Kellen Jones) - Payment Method UI & Card Helper Functions
+function togglePaymentMethod() {
+    const isCredit = document.getElementById('pay_credit')?.checked;
+    const creditFields = document.getElementById('credit-card-fields');
+    const cashFields = document.getElementById('cash-payment-fields');
+    const creditIcon = document.getElementById('credit-check-icon');
+    const cashIcon = document.getElementById('cash-check-icon');
+
+    if (isCredit) {
+        if (creditFields) creditFields.classList.remove('d-none');
+        if (cashFields) cashFields.classList.add('d-none');
+        if (creditIcon) creditIcon.classList.remove('d-none');
+        if (cashIcon) cashIcon.classList.add('d-none');
+    } else {
+        if (creditFields) creditFields.classList.add('d-none');
+        if (cashFields) cashFields.classList.remove('d-none');
+        if (creditIcon) creditIcon.classList.add('d-none');
+        if (cashIcon) cashIcon.classList.remove('d-none');
+    }
+}
+
+function handleCardNumberInput(input) {
+    if (!input) return;
+    let val = input.value.replace(/\D/g, '');
+    if (val.length > 16) val = val.substring(0, 16);
+    
+    // Format in groups of 4
+    const groups = val.match(/.{1,4}/g);
+    input.value = groups ? groups.join(' ') : val;
+
+    // Card Brand Identification
+    const brands = {
+        visa: document.getElementById('brand-badge-visa'),
+        mastercard: document.getElementById('brand-badge-mastercard'),
+        amex: document.getElementById('brand-badge-amex'),
+        discover: document.getElementById('brand-badge-discover')
+    };
+
+    Object.values(brands).forEach(b => {
+        if (b) b.className = 'badge bg-white text-secondary border font-monospace';
+    });
+
+    const cardIcon = document.getElementById('card-icon');
+    if (val.startsWith('4')) {
+        if (brands.visa) brands.visa.className = 'badge bg-primary text-white border border-primary font-monospace';
+        if (cardIcon) cardIcon.className = 'bi bi-credit-card-2-front-fill text-primary';
+    } else if (/^(5[1-5]|2[2-7])/.test(val)) {
+        if (brands.mastercard) brands.mastercard.className = 'badge bg-warning text-dark border border-warning font-monospace';
+        if (cardIcon) cardIcon.className = 'bi bi-credit-card-2-front-fill text-warning';
+    } else if (/^(34|37)/.test(val)) {
+        if (brands.amex) brands.amex.className = 'badge bg-info text-dark border border-info font-monospace';
+        if (cardIcon) cardIcon.className = 'bi bi-credit-card-2-front-fill text-info';
+    } else if (/^(6011|65|64[4-9])/.test(val)) {
+        if (brands.discover) brands.discover.className = 'badge bg-danger text-white border border-danger font-monospace';
+        if (cardIcon) cardIcon.className = 'bi bi-credit-card-2-front-fill text-danger';
+    } else {
+        if (cardIcon) cardIcon.className = 'bi bi-credit-card text-muted';
+    }
+}
+
+function handleExpiryInput(input) {
+    if (!input) return;
+    let val = input.value.replace(/\D/g, '');
+    if (val.length > 4) val = val.substring(0, 4);
+    if (val.length >= 3) {
+        input.value = val.substring(0, 2) + '/' + val.substring(2);
+    } else {
+        input.value = val;
+    }
+}
+
+function fillDemoCard(type) {
+    const nameEl = document.getElementById('name_on_card');
+    const numEl = document.getElementById('card_number');
+    const expEl = document.getElementById('exp_date');
+    const cvvEl = document.getElementById('cvv');
+    const zipEl = document.getElementById('billing_zip');
+    const creditRadio = document.getElementById('pay_credit');
+
+    if (creditRadio) {
+        creditRadio.checked = true;
+        togglePaymentMethod();
+    }
+
+    if (type === 'valid') {
+        if (nameEl) nameEl.value = 'Dr. Fadi Almasri';
+        if (numEl) {
+            numEl.value = '4242424242424242';
+            handleCardNumberInput(numEl);
+        }
+        if (expEl) expEl.value = '12/28';
+        if (cvvEl) cvvEl.value = '123';
+        if (zipEl) zipEl.value = '90210';
+    } else if (type === 'decline') {
+        if (nameEl) nameEl.value = 'Jane Decline';
+        if (numEl) {
+            numEl.value = '4000000000000002';
+            handleCardNumberInput(numEl);
+        }
+        if (expEl) expEl.value = '12/28';
+        if (cvvEl) cvvEl.value = '123';
+        if (zipEl) zipEl.value = '90210';
+    }
+}
+
+// Subtle 1-Click Autofill Helpers for Customer Details & Instructions
+function fillCustomerDemo() {
+    const nameInput = document.getElementById('customer_name');
+    const emailInput = document.getElementById('customer_email');
+    const phoneInput = document.getElementById('customer_phone');
+    const addressInput = document.getElementById('delivery_address');
+
+    if (nameInput) nameInput.value = 'Kellen Jones';
+    if (emailInput) emailInput.value = 'kjones0587@gmail.com';
+    if (phoneInput) phoneInput.value = '(555) 392-4920';
+    if (addressInput) {
+        addressInput.value = '123 Campus Parkway, Suite 402, Pizza City, CA 90210';
+    }
+}
+
+function fillInstructionsDemo() {
+    const notesInput = document.getElementById('special_instructions');
+    if (notesInput) {
+        notesInput.value = 'Please ring doorbell twice, leave order on front table. Extra red pepper and parmesan packets appreciated!';
+    }
+}
+
+// Initialize payment method visual state on load
+document.addEventListener('DOMContentLoaded', function() {
+    togglePaymentMethod();
+});
 </script>
 {% endblock %}

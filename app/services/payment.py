@@ -124,9 +124,14 @@ def validate_cvv(cvv_str, card_brand=None):
     if not clean_cvv.isdigit():
         return False, "Security code must be numeric."
 
-    expected_len = 4 if card_brand == "American Express" else 3
-    if len(clean_cvv) != expected_len and len(clean_cvv) not in (3, 4):
-        return False, f"CVV must be {expected_len} digits for {card_brand or 'credit cards'}."
+    if card_brand == "American Express":
+        if len(clean_cvv) != 4:
+            return False, "CVV must be 4 digits for American Express."
+    elif card_brand:
+        if len(clean_cvv) != 3:
+            return False, f"CVV must be 3 digits for {card_brand}."
+    elif len(clean_cvv) not in (3, 4):
+        return False, "Security code (CVV) must be 3 or 4 digits."
 
     return True, None
 

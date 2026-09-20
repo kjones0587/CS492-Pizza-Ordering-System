@@ -130,7 +130,20 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <span class="fw-bold fs-6 text-dark">${{ "%.2f"|format(ord.total_amount) }}</span>
+                                <span class="fw-bold fs-6 text-dark d-block">${{ "%.2f"|format(ord.total_amount) }}</span>
+                                {% if ord.payment_method == 'vip_pass' %}
+                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary small mt-1">
+                                        <i class="bi bi-mortarboard-fill me-1"></i> VIP Pass
+                                    </span>
+                                {% elif ord.payment_method == 'cash' %}
+                                    <span class="badge bg-warning bg-opacity-25 text-dark border border-warning small mt-1">
+                                        <i class="bi bi-cash me-1"></i> Due on {% if ord.order_type == 'delivery' %}Delivery{% else %}Pickup{% endif %}
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success small mt-1" {% if ord.transaction_id %}title="Auth: {{ ord.transaction_id }}"{% endif %}>
+                                        <i class="bi bi-credit-card-2-front-fill me-1"></i> Paid ({{ ord.card_brand or 'Card' }}{% if ord.card_last4 %} •••• {{ ord.card_last4 }}{% endif %})
+                                    </span>
+                                {% endif %}
                             </td>
                             <td>
                                 {% if ord.status == 'Received' %}
