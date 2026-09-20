@@ -11,15 +11,95 @@ cart_bp = Blueprint('cart', __name__)
 MAX_ITEM_QUANTITY = 50       # Server-side safety cap per item to prevent order overflow
 MAX_NOTES_LENGTH = 200       # Input length boundary to preserve 4KB session cookie limit
 
+def match_option(options_list, requested_name):
+    """Find matching option dictionary even if quotes, entities, or trailing characters are truncated.
+    
+    Returns the matched option dict with canonical 'name' and 'price_modifier', or None.
+    """
+    if not requested_name or not options_list:
+        return None
+    # 1. Exact match
+    for opt in options_list:
+        if opt.get('name') == requested_name:
+            return opt
+
+    # 2. Normalized match (strip quotes, html entities, whitespace, case-insensitive)
+    def clean_str(s):
+        if not s:
+            return ''
+        return s.replace('&quot;', '').replace('&#34;', '').replace('"', '').replace("'", '').strip().lower()
+
+    target = clean_str(requested_name)
+    for opt in options_list:
+        opt_name = opt.get('name', '')
+        if clean_str(opt_name) == target:
+            return opt
+
+    # 3. Tolerant prefix match for truncated strings (e.g. 'Large (16' matching 'Large (16")')
+    if len(target) >= 4:
+        for opt in options_list:
+            opt_clean = clean_str(opt.get('name', ''))
+            if opt_clean.startswith(target) or target.startswith(opt_clean):
+                return opt
+
+    return None
+
 def get_cart():
     """Retrieve or initialize the shopping cart in session.
     
     Guarantees a clean, validated list structure in the user session to
     prevent schema drift or null pointer exceptions during checkout flow.
+    Includes self-healing pass to repair truncated option names and correct
+    price modifiers from previous browser sessions.
     """
     if 'cart' not in session or not isinstance(session['cart'], list):
         session['cart'] = []
-    return session['cart']
+        return session['cart']
+
+    cart = session['cart']
+    cart_modified = False
+
+    for item in cart:
+        menu_item_id = item.get('menu_item_id')
+        if not menu_item_id:
+            continue
+        
+        # Check if size_option is truncated (e.g. contains '(' but lacks ')')
+        size_opt = item.get('size_option')
+        needs_repair = False
+        if size_opt and ('(' in size_opt and ')' not in size_opt):
+            needs_repair = True
+
+        if needs_repair:
+            menu_item = db.session.get(MenuItem, menu_item_id)
+            if menu_item:
+                options = menu_item.get_options()
+                matched_size = match_option(options.get('sizes', []), size_opt)
+                if matched_size:
+                    item['size_option'] = matched_size['name']
+                    # Recalculate accurate unit_price and line_total
+                    new_unit = menu_item.base_price + matched_size.get('price_modifier', 0.0)
+                    
+                    matched_crust = match_option(options.get('crusts', []), item.get('crust_option'))
+                    if matched_crust:
+                        item['crust_option'] = matched_crust['name']
+                        new_unit += matched_crust.get('price_modifier', 0.0)
+                        
+                    if item.get('toppings') and 'toppings' in options:
+                        top_map = {t['name']: t.get('price_modifier', 0.0) for t in options['toppings']}
+                        for t_name in item['toppings']:
+                            new_unit += top_map.get(t_name, 0.0)
+                            
+                    new_unit = round(new_unit, 2)
+                    item['unit_price'] = new_unit
+                    item['line_total'] = round(new_unit * item.get('quantity', 1), 2)
+                    cart_modified = True
+
+    if cart_modified:
+        session['cart'] = cart
+        session.modified = True
+
+    return cart
 
 def get_fulfillment_estimates(item_count):
     """Calculate realistic kitchen prep and delivery times based on order volume.
@@ -153,25 +233,25 @@ def add_to_cart():
     options = item.get_options()
 
     if size_name and 'sizes' in options:
-        for s in options['sizes']:
-            if s['name'] == size_name:
-                unit_price += s.get('price_modifier', 0.0)
-                break
+        matched_size = match_option(options['sizes'], size_name)
+        if matched_size:
+            unit_price += matched_size.get('price_modifier', 0.0)
+            size_name = matched_size['name']
 
     if crust_name and 'crusts' in options:
-        for c in options['crusts']:
-            if c['name'] == crust_name:
-                unit_price += c.get('price_modifier', 0.0)
-                break
+        matched_crust = match_option(options['crusts'], crust_name)
+        if matched_crust:
+            unit_price += matched_crust.get('price_modifier', 0.0)
+            crust_name = matched_crust['name']
 
     # Validate and calculate extra toppings
     valid_toppings = []
     if selected_toppings and 'toppings' in options:
-        toppings_map = {t['name']: t.get('price_modifier', 0.0) for t in options['toppings']}
         for top in selected_toppings:
-            if top in toppings_map:
-                valid_toppings.append(top)
-                unit_price += toppings_map[top]
+            matched_top = match_option(options['toppings'], top)
+            if matched_top:
+                valid_toppings.append(matched_top['name'])
+                unit_price += matched_top.get('price_modifier', 0.0)
     valid_toppings.sort()
 
     unit_price = round(unit_price, 2)
@@ -361,11 +441,11 @@ def update_toppings():
     valid_toppings = []
     toppings_modifier = 0.0
     if selected_toppings and 'toppings' in options:
-        toppings_map = {t['name']: t.get('price_modifier', 0.0) for t in options['toppings']}
         for top in selected_toppings:
-            if top in toppings_map:
-                valid_toppings.append(top)
-                toppings_modifier += toppings_map[top]
+            matched_top = match_option(options['toppings'], top)
+            if matched_top:
+                valid_toppings.append(matched_top['name'])
+                toppings_modifier += matched_top.get('price_modifier', 0.0)
     valid_toppings.sort()
 
     # Recalculate unit price: base_price + size_modifier + crust_modifier + toppings_modifier
@@ -374,16 +454,16 @@ def update_toppings():
     crust_name = cart_item.get('crust_option')
 
     if size_name and 'sizes' in options:
-        for s in options['sizes']:
-            if s['name'] == size_name:
-                unit_price += s.get('price_modifier', 0.0)
-                break
+        matched_size = match_option(options['sizes'], size_name)
+        if matched_size:
+            unit_price += matched_size.get('price_modifier', 0.0)
+            cart_item['size_option'] = matched_size['name']
 
     if crust_name and 'crusts' in options:
-        for c in options['crusts']:
-            if c['name'] == crust_name:
-                unit_price += c.get('price_modifier', 0.0)
-                break
+        matched_crust = match_option(options['crusts'], crust_name)
+        if matched_crust:
+            unit_price += matched_crust.get('price_modifier', 0.0)
+            cart_item['crust_option'] = matched_crust['name']
 
     unit_price += toppings_modifier
     unit_price = round(unit_price, 2)

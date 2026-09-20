@@ -221,9 +221,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             item.options.sizes.forEach((s, idx) => {
                                 const modText = s.price_modifier > 0 ? ` (+$${s.price_modifier.toFixed(2)})` : '';
                                 const checked = idx === 0 ? 'checked' : '';
+                                const safeValue = s.name.replace(/"/g, '&quot;');
                                 modalSizesContainer.innerHTML += `
                                     <div class="form-check form-check-inline me-3 mb-2">
-                                        <input class="form-check-input" type="radio" name="size_option" id="size_${idx}" value="${s.name}" data-modifier="${s.price_modifier}" ${checked}>
+                                        <input class="form-check-input" type="radio" name="size_option" id="size_${idx}" value="${safeValue}" data-modifier="${s.price_modifier}" ${checked}>
                                         <label class="form-check-label fw-medium" for="size_${idx}">${s.name}${modText}</label>
                                     </div>
                                 `;
@@ -239,9 +240,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             item.options.crusts.forEach((c, idx) => {
                                 const modText = c.price_modifier > 0 ? ` (+$${c.price_modifier.toFixed(2)})` : '';
                                 const checked = idx === 0 ? 'checked' : '';
+                                const safeValue = c.name.replace(/"/g, '&quot;');
                                 modalCrustsContainer.innerHTML += `
                                     <div class="form-check me-3 mb-2">
-                                        <input class="form-check-input" type="radio" name="crust_option" id="crust_${idx}" value="${c.name}" data-modifier="${c.price_modifier}" ${checked}>
+                                        <input class="form-check-input" type="radio" name="crust_option" id="crust_${idx}" value="${safeValue}" data-modifier="${c.price_modifier}" ${checked}>
                                         <label class="form-check-label" for="crust_${idx}">${c.name}${modText}</label>
                                     </div>
                                 `;
@@ -263,11 +265,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                 const modText = modVal > 0 ? `+$${modVal.toFixed(2)}` : 'Free';
                                 const catBadge = top.category === 'Meats' ? 'bg-danger-subtle text-danger' :
                                                  top.category === 'Cheese' ? 'bg-warning-subtle text-dark' : 'bg-success-subtle text-success';
+                                const safeValue = top.name.replace(/"/g, '&quot;');
                                 modalToppingsContainer.innerHTML += `
                                     <div class="col-sm-6">
                                         <label class="d-flex align-items-center justify-content-between p-2 rounded-3 border bg-white topping-card-label mb-0 w-100" for="topping_${idx}" style="cursor: pointer;">
                                             <div class="d-flex align-items-center">
-                                                <input class="form-check-input me-2 mt-0" type="checkbox" name="toppings" id="topping_${idx}" value="${top.name}" data-modifier="${modVal}">
+                                                <input class="form-check-input me-2 mt-0" type="checkbox" name="toppings" id="topping_${idx}" value="${safeValue}" data-modifier="${modVal}">
                                                 <span class="small fw-semibold text-dark">${top.name}</span>
                                             </div>
                                             <span class="badge ${catBadge} small fw-bold ms-1">${modText}</span>
@@ -777,11 +780,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         editCrustModifier = 0.0;
 
                         if (item.options && item.options.sizes) {
-                            const sizeObj = item.options.sizes.find(s => s.name === sizeOption);
+                            const cleanSize = (sizeOption || '').replace(/"/g, '').trim().toLowerCase();
+                            const sizeObj = item.options.sizes.find(s => {
+                                const sClean = s.name.replace(/"/g, '').trim().toLowerCase();
+                                return s.name === sizeOption || sClean === cleanSize || sClean.startsWith(cleanSize);
+                            });
                             if (sizeObj) editSizeModifier = sizeObj.price_modifier || 0.0;
                         }
                         if (item.options && item.options.crusts) {
-                            const crustObj = item.options.crusts.find(c => c.name === crustOption);
+                            const cleanCrust = (crustOption || '').replace(/"/g, '').trim().toLowerCase();
+                            const crustObj = item.options.crusts.find(c => {
+                                const cClean = c.name.replace(/"/g, '').trim().toLowerCase();
+                                return c.name === crustOption || cClean === cleanCrust;
+                            });
                             if (crustObj) editCrustModifier = crustObj.price_modifier || 0.0;
                         }
 
@@ -794,12 +805,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                 const catBadge = top.category === 'Meats' ? 'bg-danger-subtle text-danger' :
                                                  top.category === 'Cheese' ? 'bg-warning-subtle text-dark' : 'bg-success-subtle text-success';
                                 const isChecked = currentToppings.includes(top.name) ? 'checked' : '';
+                                const safeValue = top.name.replace(/"/g, '&quot;');
 
                                 editToppingsContainer.innerHTML += `
                                     <div class="col-sm-6">
                                         <label class="d-flex align-items-center justify-content-between p-2 rounded-3 border bg-white topping-card-label mb-0 w-100" for="edit_topping_${idx}" style="cursor: pointer;">
                                             <div class="d-flex align-items-center">
-                                                <input class="form-check-input me-2 mt-0" type="checkbox" name="toppings" id="edit_topping_${idx}" value="${top.name}" data-modifier="${modVal}" ${isChecked}>
+                                                <input class="form-check-input me-2 mt-0" type="checkbox" name="toppings" id="edit_topping_${idx}" value="${safeValue}" data-modifier="${modVal}" ${isChecked}>
                                                 <span class="small fw-semibold text-dark">${top.name}</span>
                                             </div>
                                             <span class="badge ${catBadge} small fw-bold ms-1">${modText}</span>

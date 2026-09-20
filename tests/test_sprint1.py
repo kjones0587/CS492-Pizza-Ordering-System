@@ -684,6 +684,78 @@ def test_t1_03_cart_inline_topping_update(client):
     assert res_invalid.status_code == 400
     assert res_invalid.get_json()['success'] is False
 
+def test_size_option_quote_escaping_and_price_calculation(client):
+    """Verify size options containing double quotes (e.g., Large (16\")) correctly apply modifiers,
+    handle truncated inputs defensively, and self-heal existing session carts.
+    """
+    pep = MenuItem.query.filter_by(name='Pepperoni Rustica').first()
+    assert pep is not None
+    assert pep.base_price == 16.99
+
+    # 1. Add with exact canonical size string 'Large (16")' (+6.50)
+    res1 = client.post('/cart/add', data={
+        'menu_item_id': pep.id,
+        'size_option': 'Large (16")',
+        'crust_option': 'Classic Hand-Tossed',
+        'quantity': 1
+    }, headers={'X-Requested-With': 'XMLHttpRequest'})
+    assert res1.status_code == 200
+    data1 = res1.get_json()
+    assert data1['success'] is True
+    assert data1['unit_price'] == 23.49
+    assert data1['line_total'] == 23.49
+
+    # Clear cart
+    client.post('/cart/clear')
+
+    # 2. Add with truncated size string 'Large (16' (simulating browser unescaped HTML attribute truncation)
+    res2 = client.post('/cart/add', data={
+        'menu_item_id': pep.id,
+        'size_option': 'Large (16',
+        'crust_option': 'Classic Hand-Tossed',
+        'quantity': 1
+    }, headers={'X-Requested-With': 'XMLHttpRequest'})
+    assert res2.status_code == 200
+    data2 = res2.get_json()
+    assert data2['success'] is True
+    # Verify modifier was still applied and size was canonicalized
+    assert data2['unit_price'] == 23.49
+    with client.session_transaction() as sess:
+        assert sess['cart'][0]['size_option'] == 'Large (16")'
+        assert sess['cart'][0]['unit_price'] == 23.49
+
+    # Clear cart
+    client.post('/cart/clear')
+
+    # 3. Test self-healing: simulate existing user session with corrupted 'Large (16' and stale $16.99
+    with client.session_transaction() as sess:
+        sess['cart'] = [{
+            'menu_item_id': pep.id,
+            'name': pep.name,
+            'image_url': pep.image_url,
+            'size_option': 'Large (16',
+            'crust_option': 'Classic Hand-Tossed',
+            'toppings': [],
+            'special_notes': None,
+            'unit_price': 16.99,
+            'quantity': 1,
+            'line_total': 16.99
+        }]
+
+    # Customer navigates to cart page - self-healing pass in get_cart() executes
+    cart_page = client.get('/cart/')
+    assert cart_page.status_code == 200
+    cart_html = cart_page.data.decode('utf-8')
+    assert ('Large (16&#34;)' in cart_html or 'Large (16")' in cart_html)
+    assert '23.49' in cart_html
+
+    # Check session was updated
+    with client.session_transaction() as sess:
+        assert sess['cart'][0]['size_option'] == 'Large (16")'
+        assert sess['cart'][0]['unit_price'] == 23.49
+        assert sess['cart'][0]['line_total'] == 23.49
+
+
 
 
 
