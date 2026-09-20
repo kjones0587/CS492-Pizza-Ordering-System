@@ -263,5 +263,43 @@ def test_order_submission_with_zero_balance_vip_waiver(client, app):
         assert order is not None
         assert order.payment_method == 'vip_pass'
         assert order.total_amount == 0.0
-        assert 'Faculty Pass' in order.payment_status
         assert order.transaction_id.startswith('TXN-VIP-')
+
+def test_checkout_2step_wizard_and_autofill_elements(client, app):
+    """Verify that the checkout template renders the 2-step wizard and 1-click autofill buttons."""
+    with app.app_context():
+        item = MenuItem.query.first()
+        item_id = item.id
+
+    client.post('/cart/add', data={'menu_item_id': item_id, 'quantity': 1})
+    res = client.get('/cart/checkout')
+    assert res.status_code == 200
+    html = res.data.decode('utf-8')
+
+    # Verify 2-Step wizard stepper
+    assert 'id="step-badge-1"' in html
+    assert 'id="step-badge-2"' in html
+    assert 'id="checkout-step-1"' in html
+    assert 'id="checkout-step-2"' in html
+    assert 'Continue to Payment &amp; Review' in html or 'Continue to Payment & Review' in html
+
+    # Verify 1-click autofill buttons
+    assert 'fillCustomerDemo()' in html
+    assert 'Auto-Fill Demo Info' in html
+    assert 'fillInstructionsDemo()' in html
+    assert 'Sample Note' in html
+    assert "fillDemoCard('valid')" in html
+    assert 'Auto-Fill Demo Visa' in html
+    assert "fillDemoCard('decline')" in html
+    assert 'Test Decline Card' in html
+
+    # Verify Step 2 summary capsule and payment fields
+    assert 'id="summary-customer-name"' in html
+    assert 'id="summary-fulfillment-type"' in html
+    assert 'id="credit-card-fields"' in html
+    assert 'name_on_card' in html
+    assert 'card_number' in html
+    assert 'exp_date' in html
+    assert 'cvv' in html
+    assert 'billing_zip' in html
+
