@@ -18,7 +18,7 @@ POPULAR_TOPPINGS = [
 def seed_sprint2_defaults():
     """Seed default manager account and promo codes if they do not exist."""
     try:
-        if Manager.query.first() is None:
+        if Manager.query.filter_by(username='manager').first() is None:
             mgr = Manager(
                 username='manager',
                 email='manager@bellanapolipizza.com',
@@ -27,6 +27,16 @@ def seed_sprint2_defaults():
             )
             mgr.set_password('pizza123')
             db.session.add(mgr)
+
+        if Manager.query.filter_by(username='admin').first() is None:
+            admin_mgr = Manager(
+                username='admin',
+                email='admin@bellanapolipizza.com',
+                role='Store Manager',
+                is_active=True
+            )
+            admin_mgr.set_password('password123')
+            db.session.add(admin_mgr)
 
         if PromoCode.query.first() is None:
             promo1 = PromoCode(
@@ -47,6 +57,18 @@ def seed_sprint2_defaults():
             )
             db.session.add(promo1)
             db.session.add(promo2)
+
+        # VIP Faculty Promo Code (Story PB-09 Easter Egg)
+        if PromoCode.query.filter_by(code='ALMASRI').first() is None:
+            promo_almasri = PromoCode(
+                code='ALMASRI',
+                description='VIP Faculty Pass: Professor always eats free at Bella Napoli!',
+                discount_type='percent',
+                discount_value=100.0,
+                min_subtotal=0.0,
+                is_active=True
+            )
+            db.session.add(promo_almasri)
 
         db.session.commit()
     except Exception:

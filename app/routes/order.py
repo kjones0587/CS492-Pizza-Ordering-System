@@ -60,6 +60,8 @@ def submit_order():
         tax_amount=totals['tax_amount'],
         delivery_fee=totals['delivery_fee'],
         total_amount=totals['total_amount'],
+        discount_amount=totals['discount_amount'],
+        promo_code=totals['promo_code'],
         status='Received',
         created_at=datetime.now(timezone.utc)
     )
@@ -85,8 +87,9 @@ def submit_order():
 
     db.session.commit()
 
-    # Clear customer session cart
+    # Clear customer session cart and active promo
     session['cart'] = []
+    session.pop('promo_code', None)
     session.modified = True
 
     return redirect(url_for('order.confirmation', order_number=order_num))

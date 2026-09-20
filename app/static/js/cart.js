@@ -34,13 +34,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Fetch recalculated totals from server
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         fetch('/cart/calculate-api', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken || ''
             },
-            body: JSON.stringify({ order_type: type })
+            body: JSON.stringify({ order_type: type, csrf_token: csrfToken })
         })
         .then(res => res.json())
         .then(data => {
@@ -48,6 +50,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (billDeliveryFee) billDeliveryFee.textContent = '$' + data.totals.delivery_fee.toFixed(2);
                 if (billTax) billTax.textContent = '$' + data.totals.tax_amount.toFixed(2);
                 if (billTotal) billTotal.textContent = '$' + data.totals.total_amount.toFixed(2);
+                if (deliveryFeeRow) {
+                    deliveryFeeRow.classList.toggle('d-flex', data.totals.delivery_fee > 0);
+                    deliveryFeeRow.classList.toggle('d-none', data.totals.delivery_fee <= 0);
+                }
             }
         })
         .catch(err => console.error('Error updating order totals:', err));
@@ -466,12 +472,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     formData.set('quantity', val);
                 }
 
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                               || qtyForm.querySelector('input[name="csrf_token"]')?.value;
+                if (csrfToken && !formData.has('csrf_token')) {
+                    formData.append('csrf_token', csrfToken);
+                }
+
                 fetch(qtyForm.action, {
                     method: 'POST',
                     body: formData,
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': csrfToken || ''
+                    }
                 })
-                .then(r => r.json())
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP error ${r.status}`);
+                    return r.json();
+                })
                 .then(data => {
                     if (data.success && data.totals) {
                         updateCartSummary(data.totals);
@@ -508,17 +526,37 @@ document.addEventListener('DOMContentLoaded', () => {
             if (removeForm) {
                 e.preventDefault();
                 const row = removeForm.closest('.cart-row');
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                               || removeForm.querySelector('input[name="csrf_token"]')?.value;
+                const formData = new FormData(removeForm);
+                if (csrfToken && !formData.has('csrf_token')) {
+                    formData.append('csrf_token', csrfToken);
+                }
 
                 fetch(removeForm.action, {
                     method: 'POST',
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': csrfToken || ''
+                    }
                 })
-                .then(r => r.json())
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP error ${r.status}`);
+                    return r.json();
+                })
                 .then(data => {
                     if (data.success && data.totals) {
                         updateCartSummary(data.totals);
-                        row.remove();
+                        if (row) row.remove();
                         reindexCartRows();
+
+                        // If cart is now empty, reload page to display empty cart message and state
+                        if (data.totals.item_count === 0) {
+                            window.location.reload();
+                        }
+                    } else {
+                        removeForm.submit();
                     }
                 })
                 .catch(err => {

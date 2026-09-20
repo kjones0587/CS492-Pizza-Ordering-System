@@ -232,11 +232,27 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="text-muted small text-uppercase fw-bold mb-1">Email Support</label>
-                        <div>
-                            <a href="mailto:{{ restaurant.email }}" class="text-dark fw-medium text-decoration-none">
-                                <i class="bi bi-envelope me-2"></i>{{ restaurant.email }}
-                            </a>
+                        <div class="contact-email-card p-3 rounded-3 bg-light bg-opacity-75 border border-light transition-all" 
+                             style="cursor: pointer;" 
+                             onclick="handleEmailSupportClick(event)"
+                             title="Click to email {{ restaurant.email }}">
+                            <div class="text-muted small text-uppercase fw-bold mb-1 d-flex justify-content-between align-items-center">
+                                <span>Email Support</span>
+                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 small py-1 px-2" style="font-size: 0.72rem;">
+                                    <i class="bi bi-send me-1"></i> Send Email
+                                </span>
+                            </div>
+                            <div class="fw-bold text-dark d-flex align-items-center mt-1">
+                                <i class="bi bi-envelope-fill text-danger me-2 fs-5"></i>
+                                <a href="mailto:{{ restaurant.email }}?subject=Bella%20Napoli%20Customer%20Support%20Inquiry" 
+                                   class="text-danger fw-semibold text-decoration-underline"
+                                   onclick="event.stopPropagation(); handleEmailSupportClick(event);">
+                                   {{ restaurant.email }}
+                                </a>
+                            </div>
+                            <small class="text-muted mt-1 d-block" style="font-size: 0.78rem;">
+                                Click to compose in Gmail, Outlook, or your default email app.
+                            </small>
                         </div>
                     </div>
 
@@ -250,6 +266,118 @@
         </div>
     </div>
 </section>
+
+<!-- Email Support Launch Modal -->
+<div class="modal fade" id="emailSupportModal" tabindex="-1" aria-labelledby="emailSupportModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header border-0 bg-danger text-white py-3">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-envelope-heart-fill fs-4"></i>
+                    <h5 class="modal-title fw-bold text-white mb-0" id="emailSupportModalLabel">Contact Bella Napoli Support</h5>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <div class="mb-3">
+                    <span class="text-muted small text-uppercase fw-bold">Support Email Address</span>
+                    <div class="d-flex align-items-center justify-content-center gap-2 mt-1">
+                        <span class="fs-5 fw-bold text-dark font-monospace" id="support-email-text">{{ restaurant.email }}</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1" onclick="copySupportEmail(this)" title="Copy email address">
+                            <i class="bi bi-clipboard me-1"></i> Copy
+                        </button>
+                    </div>
+                </div>
+                <p class="text-muted small mb-4">
+                    Choose your preferred email client or browser to compose your message:
+                </p>
+
+                <div class="d-grid gap-2 text-start">
+                    <a href="https://mail.google.com/mail/?view=cm&fs=1&to={{ restaurant.email }}&su=Bella+Napoli+Customer+Support+Inquiry" 
+                       target="_blank" 
+                       rel="noopener noreferrer"
+                       class="btn btn-outline-danger p-3 rounded-3 d-flex align-items-center justify-content-between shadow-sm">
+                        <div class="d-flex align-items-center gap-3">
+                            <i class="bi bi-google fs-4 text-danger"></i>
+                            <div>
+                                <div class="fw-bold text-dark">Open in Gmail (Web Browser)</div>
+                                <small class="text-muted">Launches Gmail compose with To: pre-filled</small>
+                            </div>
+                        </div>
+                        <i class="bi bi-box-arrow-up-right text-muted"></i>
+                    </a>
+
+                    <a href="https://outlook.live.com/mail/0/deeplink/compose?to={{ restaurant.email }}&subject=Bella+Napoli+Customer+Support+Inquiry" 
+                       target="_blank" 
+                       rel="noopener noreferrer"
+                       class="btn btn-outline-primary p-3 rounded-3 d-flex align-items-center justify-content-between shadow-sm">
+                        <div class="d-flex align-items-center gap-3">
+                            <i class="bi bi-microsoft fs-4 text-primary"></i>
+                            <div>
+                                <div class="fw-bold text-dark">Open in Outlook / Hotmail (Web)</div>
+                                <small class="text-muted">Launches Outlook web compose with To: pre-filled</small>
+                            </div>
+                        </div>
+                        <i class="bi bi-box-arrow-up-right text-muted"></i>
+                    </a>
+
+                    <a href="mailto:{{ restaurant.email }}?subject=Bella%20Napoli%20Customer%20Support%20Inquiry" 
+                       class="btn btn-light border p-3 rounded-3 d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center gap-3">
+                            <i class="bi bi-envelope-at fs-4 text-secondary"></i>
+                            <div>
+                                <div class="fw-bold text-dark">Default Desktop Email App</div>
+                                <small class="text-muted">Launch via system mail handler (mailto:)</small>
+                            </div>
+                        </div>
+                        <i class="bi bi-arrow-right text-muted"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="modal-footer border-0 bg-light justify-content-center py-2">
+                <small class="text-muted">
+                    <i class="bi bi-clock-history me-1"></i> We typically respond to customer inquiries within 1 hour during business hours.
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function handleEmailSupportClick(e) {
+    if (e && e.preventDefault && e.target && e.target.tagName === 'A') {
+        // Let standard link try
+    }
+    // Attempt standard mailto launch
+    try {
+        window.location.href = "mailto:{{ restaurant.email }}?subject=Bella%20Napoli%20Customer%20Support%20Inquiry";
+    } catch(err) {}
+
+    // Show the modal offering webmail options (Gmail, Outlook) & Copy
+    const modalEl = document.getElementById('emailSupportModal');
+    if (modalEl && typeof bootstrap !== 'undefined') {
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    }
+}
+
+function copySupportEmail(btn) {
+    const email = "{{ restaurant.email }}";
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(email).then(() => {
+            const origHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check2 text-success me-1"></i> Copied!';
+            btn.classList.remove('btn-outline-secondary');
+            btn.classList.add('btn-success', 'text-white');
+            setTimeout(() => {
+                btn.innerHTML = origHtml;
+                btn.classList.remove('btn-success', 'text-white');
+                btn.classList.add('btn-outline-secondary');
+            }, 2500);
+        });
+    }
+}
+</script>
 
 <!-- Item Customization Modal Placeholder -->
 {% include "partials/_modal_customize.html" %}

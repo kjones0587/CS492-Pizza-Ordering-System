@@ -153,6 +153,7 @@
                                     </td>
                                     <td class="text-center pe-4">
                                         <form action="{{ url_for('cart.remove_item', index=loop.index0) }}" method="POST" class="cart-remove-form">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <input type="hidden" name="index" class="cart-input-index" value="{{ loop.index0 }}">
                                             <button type="submit" class="btn btn-outline-danger btn-sm rounded-circle p-2" title="Remove item">
                                                 <i class="bi bi-trash"></i>

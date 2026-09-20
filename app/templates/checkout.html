@@ -158,14 +158,19 @@
                         <span class="text-danger fw-semibold" style="cursor: pointer;" onclick="document.getElementById('promo-input').value='WELCOME10';">Try WELCOME10</span>
                     </label>
                     <div class="d-flex gap-2">
-                        <input type="text" class="form-control form-control-sm text-uppercase fw-bold" id="promo-input" placeholder="e.g. WELCOME10, SAVE5" value="{{ totals.promo_code or '' }}">
+                        <input type="text" class="form-control form-control-sm text-uppercase fw-bold" id="promo-input" placeholder="e.g. WELCOME10, SAVE5" value="{{ totals.promo_code or '' }}" onkeydown="if(event.key==='Enter'){event.preventDefault();applyPromoCode();}">
                         <button type="button" class="btn btn-outline-danger btn-sm text-nowrap" id="promo-apply-btn" onclick="applyPromoCode()">
                             Apply
                         </button>
                     </div>
                     <div id="promo-feedback" class="small mt-1">
                         {% if totals.discount_amount > 0 %}
-                            <span class="text-success"><i class="bi bi-tag-fill me-1"></i> Promo code <strong>{{ totals.promo_code }}</strong> applied!</span>
+                            <div class="d-flex align-items-center justify-content-between text-success">
+                                <span><i class="bi bi-tag-fill me-1"></i> Promo code <strong>{{ totals.promo_code }}</strong> applied!</span>
+                                <button type="button" class="btn btn-link btn-sm text-danger p-0 text-decoration-none ms-2" onclick="removePromoCode()" title="Remove promo code">
+                                    <i class="bi bi-x-circle-fill"></i> Remove
+                                </button>
+                            </div>
                         {% endif %}
                     </div>
                 </div>
@@ -179,12 +184,12 @@
                 </div>
 
                 <!-- Discount Line Item (PB-09: Nicholas Lattimore) -->
-                <div class="d-flex justify-content-between mb-2 text-success" id="discount-row" style="{% if totals.discount_amount == 0 %}display: none;{% endif %}">
+                <div class="{% if totals.discount_amount > 0 %}d-flex{% else %}d-none{% endif %} justify-content-between mb-2 text-success" id="discount-row">
                     <span><i class="bi bi-tag-fill me-1"></i> Discount (<span id="bill-promo-code">{{ totals.promo_code or '' }}</span>)</span>
                     <span class="fw-bold" id="bill-discount">-${{ "%.2f"|format(totals.discount_amount) }}</span>
                 </div>
 
-                <div class="d-flex justify-content-between mb-2" id="delivery-fee-row" style="{% if totals.delivery_fee == 0 %}display: none;{% endif %}">
+                <div class="{% if totals.delivery_fee > 0 %}d-flex{% else %}d-none{% endif %} justify-content-between mb-2" id="delivery-fee-row">
                     <span class="text-muted">Delivery Fee</span>
                     <span class="fw-medium text-dark" id="bill-delivery-fee">${{ "%.2f"|format(totals.delivery_fee) }}</span>
                 </div>
@@ -212,6 +217,51 @@
     </div>
 </div>
 
+<!-- VIP Faculty Modal (Easter Egg Promo Code: ALMASRI) -->
+<div class="modal fade" id="vipModal" tabindex="-1" aria-labelledby="vipModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden text-center">
+            <div class="modal-header border-0 text-white py-4 justify-content-center position-relative" style="background: linear-gradient(135deg, #b02a37 0%, #dc3545 50%, #fd7e14 100%);">
+                <div>
+                    <div style="font-size: 3.5rem; line-height: 1;" class="mb-2">🎓🍕🎉</div>
+                    <h3 class="modal-title fw-bold text-white mb-0" id="vipModalLabel">VIP Faculty Pass Activated!</h3>
+                    <span class="badge bg-warning text-dark fw-bold px-3 py-1 mt-2 text-uppercase">Honorary Lifetime Dining Pass</span>
+                </div>
+                <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 py-4">
+                <h5 class="fw-bold text-danger mb-2">"Professor always eats free at Bella Napoli!"</h5>
+                <p class="text-muted mb-3">
+                    Special Capstone VIP Perk: Dr. Almasri, your full tab, including hand-tossed artisan pizzas, sides, taxes, and delivery fees, is completely on the house!
+                </p>
+                <div class="bg-light rounded-3 p-3 mb-3 border">
+                    <div class="d-flex justify-content-between text-muted small mb-1">
+                        <span>Faculty Discount Rate:</span>
+                        <strong class="text-success">100% OFF</strong>
+                    </div>
+                    <div class="d-flex justify-content-between text-muted small mb-1">
+                        <span>Tax & Delivery Fee:</span>
+                        <strong class="text-success">$0.00 (Waived)</strong>
+                    </div>
+                    <hr class="my-2">
+                    <div class="d-flex justify-content-between fs-5 fw-bold text-dark">
+                        <span>Total Due:</span>
+                        <span class="text-success fs-4">$0.00</span>
+                    </div>
+                </div>
+                <div class="text-muted small fst-italic">
+                    Grazie mille for guiding our CS492 Capstone team this semester! 🍕
+                </div>
+            </div>
+            <div class="modal-footer border-0 bg-light justify-content-center py-3">
+                <button type="button" class="btn btn-danger btn-lg px-4 rounded-pill fw-bold shadow-sm" data-bs-dismiss="modal">
+                    Claim Free Pizza! 🎉
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 // Task T2-04 (PB-09: Nicholas Lattimore) - Live Promo Code AJAX Application
 function applyPromoCode() {
@@ -226,27 +276,78 @@ function applyPromoCode() {
     }
 
     if (btn) btn.disabled = true;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
     const formData = new FormData();
     formData.append('promo_code', code);
+    if (csrfToken) formData.append('csrf_token', csrfToken);
 
     fetch("{{ url_for('cart.apply_promo') }}", {
         method: 'POST',
         body: formData,
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrfToken || ''
+        }
     })
     .then(res => res.json().then(data => ({ status: res.status, body: data })))
     .then(({ status, body }) => {
         if (btn) btn.disabled = false;
         if (body.success) {
-            if (feedback) feedback.innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>${body.message}</span>`;
+            if (feedback) {
+                feedback.innerHTML = `
+                    <div class="d-flex align-items-center justify-content-between text-success">
+                        <span><i class="bi bi-check-circle-fill me-1"></i>${body.message}</span>
+                        <button type="button" class="btn btn-link btn-sm text-danger p-0 text-decoration-none ms-2" onclick="removePromoCode()" title="Remove promo code">
+                            <i class="bi bi-x-circle-fill"></i> Remove
+                        </button>
+                    </div>`;
+            }
             updateCheckoutTotals(body.totals);
+
+            // Easter Egg VIP Faculty Modal Trigger (ALMASRI)
+            if (body.is_vip || code === 'ALMASRI') {
+                const modalEl = document.getElementById('vipModal');
+                if (modalEl && typeof bootstrap !== 'undefined') {
+                    const vipModal = new bootstrap.Modal(modalEl);
+                    vipModal.show();
+                }
+            }
         } else {
             if (feedback) feedback.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-circle me-1"></i>${body.message}</span>`;
         }
     })
-    .catch(() => {
+    .catch((err) => {
         if (btn) btn.disabled = false;
+        console.error('Error applying promo code:', err);
         if (feedback) feedback.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Error applying promo code.</span>';
+    });
+}
+
+function removePromoCode() {
+    const feedback = document.getElementById('promo-feedback');
+    const input = document.getElementById('promo-input');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const formData = new FormData();
+    if (csrfToken) formData.append('csrf_token', csrfToken);
+
+    fetch("{{ url_for('cart.remove_promo') }}", {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrfToken || ''
+        }
+    })
+    .then(res => res.json().then(data => ({ status: res.status, body: data })))
+    .then(({ status, body }) => {
+        if (body.success) {
+            if (input) input.value = '';
+            if (feedback) feedback.innerHTML = '<span class="text-muted"><i class="bi bi-info-circle me-1"></i>Promo code removed.</span>';
+            updateCheckoutTotals(body.totals);
+        }
+    })
+    .catch((err) => {
+        console.error('Error removing promo code:', err);
     });
 }
 
@@ -258,17 +359,36 @@ function updateCheckoutTotals(totals) {
     const discountRow = document.getElementById('discount-row');
     const discountEl = document.getElementById('bill-discount');
     const promoCodeEl = document.getElementById('bill-promo-code');
+    const deliveryFeeRow = document.getElementById('delivery-fee-row');
+    const deliveryFeeEl = document.getElementById('bill-delivery-fee');
 
     if (subtotalEl) subtotalEl.textContent = `$${totals.subtotal.toFixed(2)}`;
     if (taxEl) taxEl.textContent = `$${totals.tax_amount.toFixed(2)}`;
     if (totalEl) totalEl.textContent = `$${totals.total_amount.toFixed(2)}`;
+    if (deliveryFeeEl) deliveryFeeEl.textContent = `$${totals.delivery_fee.toFixed(2)}`;
 
-    if (totals.discount_amount > 0 && discountRow) {
-        discountRow.style.display = 'flex';
-        if (discountEl) discountEl.textContent = `-$${totals.discount_amount.toFixed(2)}`;
-        if (promoCodeEl) promoCodeEl.textContent = totals.promo_code || '';
-    } else if (discountRow) {
-        discountRow.style.display = 'none';
+    if (deliveryFeeRow) {
+        if (totals.delivery_fee > 0) {
+            deliveryFeeRow.classList.remove('d-none');
+            deliveryFeeRow.classList.add('d-flex');
+        } else {
+            deliveryFeeRow.classList.remove('d-flex');
+            deliveryFeeRow.classList.add('d-none');
+        }
+    }
+
+    if (discountRow) {
+        if (totals.discount_amount > 0) {
+            discountRow.classList.remove('d-none');
+            discountRow.classList.add('d-flex');
+            if (discountEl) discountEl.textContent = `-$${totals.discount_amount.toFixed(2)}`;
+            if (promoCodeEl) promoCodeEl.textContent = totals.promo_code || '';
+        } else {
+            discountRow.classList.remove('d-flex');
+            discountRow.classList.add('d-none');
+            if (discountEl) discountEl.textContent = '-$0.00';
+            if (promoCodeEl) promoCodeEl.textContent = '';
+        }
     }
 }
 </script>

@@ -64,22 +64,39 @@ def calculate_totals(cart, order_type='pickup', promo_code=None):
     subtotal = round(subtotal, 2)
 
     # Promo Code Discount (PB-09: Nicholas Lattimore)
-    active_code = promo_code if promo_code is not None else session.get('promo_code')
+    if not cart or item_count == 0:
+        session.pop('promo_code', None)
+        active_code = None
+    else:
+        active_code = promo_code if promo_code is not None else session.get('promo_code')
     discount_amount = 0.0
     promo_desc = None
     if active_code:
-        promo_obj = PromoCode.query.filter_by(code=active_code.strip().upper(), is_active=True).first()
+        active_code_clean = active_code.strip().upper()
+        promo_obj = PromoCode.query.filter_by(code=active_code_clean, is_active=True).first()
         if promo_obj and subtotal >= promo_obj.min_subtotal:
             discount_amount = promo_obj.calculate_discount(subtotal)
             promo_desc = promo_obj.description
         elif promo_obj and subtotal < promo_obj.min_subtotal:
             active_code = None
+        elif active_code_clean == 'ALMASRI':
+            # Resiliency fallback for demo
+            discount_amount = subtotal
+            promo_desc = 'VIP Faculty Pass: Professor always eats free at Bella Napoli!'
 
     taxable_amount = max(0.0, round(subtotal - discount_amount, 2))
     tax_rate = current_app.config.get('TAX_RATE', 0.0825)
     tax_amount = round(taxable_amount * tax_rate, 2)
     delivery_fee = current_app.config.get('DELIVERY_FEE', 4.99) if order_type == 'delivery' else 0.0
-    total_amount = round(taxable_amount + tax_amount + delivery_fee, 2)
+
+    # VIP Faculty Easter Egg (ALMASRI): 100% discount, taxes waived, delivery fee waived ($0.00 grand total)
+    if active_code and active_code.strip().upper() == 'ALMASRI':
+        discount_amount = subtotal
+        tax_amount = 0.0
+        delivery_fee = 0.0
+        total_amount = 0.0
+    else:
+        total_amount = round(taxable_amount + tax_amount + delivery_fee, 2)
     estimates = get_fulfillment_estimates(item_count)
     return {
         'subtotal': subtotal,
@@ -235,6 +252,8 @@ def update_item():
         if cart[index]['quantity'] <= 0:
             removed_name = cart[index]['name']
             cart.pop(index)
+            if len(cart) == 0:
+                session.pop('promo_code', None)
             flash(f'Removed {removed_name} from your cart.', 'info')
         else:
             cart[index]['line_total'] = round(cart[index]['quantity'] * cart[index]['unit_price'], 2)
@@ -258,6 +277,8 @@ def remove_item(index):
     cart = get_cart()
     if 0 <= index < len(cart):
         removed_item = cart.pop(index)
+        if len(cart) == 0:
+            session.pop('promo_code', None)
         session['cart'] = cart
         session.modified = True
         flash(f'Removed {removed_item["name"]} from your cart.', 'info')
@@ -399,6 +420,7 @@ def update_toppings():
 @cart_bp.route('/clear', methods=['POST'])
 def clear_cart():
     session['cart'] = []
+    session.pop('promo_code', None)
     session.modified = True
     flash('Your cart has been cleared.', 'info')
     return redirect(url_for('menu.index'))
@@ -445,6 +467,24 @@ def apply_promo():
         flash('Please enter a promo code.', 'warning')
         return redirect(url_for('cart.checkout'))
 
+    # Demo Resiliency / Easter Egg: Ensure ALMASRI promo code exists in DB
+    if code == 'ALMASRI':
+        promo_almasri = PromoCode.query.filter_by(code='ALMASRI').first()
+        if not promo_almasri:
+            try:
+                promo_almasri = PromoCode(
+                    code='ALMASRI',
+                    description='VIP Faculty Pass: Professor always eats free at Bella Napoli!',
+                    discount_type='percent',
+                    discount_value=100.0,
+                    min_subtotal=0.0,
+                    is_active=True
+                )
+                db.session.add(promo_almasri)
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
     promo = PromoCode.query.filter_by(code=code, is_active=True).first()
     if not promo:
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -466,14 +506,20 @@ def apply_promo():
     order_type = session.get('order_type', 'pickup')
     totals = calculate_totals(cart, order_type=order_type, promo_code=code)
 
+    is_vip = (code == 'ALMASRI')
+    vip_message = "VIP Faculty Pass Activated! Professor always eats free at Bella Napoli!" if is_vip else None
+
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({
             'success': True,
-            'message': f'Promo code "{code}" applied! You saved ${totals["discount_amount"]:.2f}.',
+            'is_vip': is_vip,
+            'vip_title': '🎓 VIP Faculty Pass Activated! 🍕',
+            'vip_message': 'Professor always eats free at Bella Napoli! 100% discount applied to your entire order (including delivery fee & taxes waived). Enjoy your pizza feast, Dr. Almasri!',
+            'message': vip_message if is_vip else f'Promo code "{code}" applied! You saved ${totals["discount_amount"]:.2f}.',
             'totals': totals
         })
 
-    flash(f'Promo code "{code}" applied! You saved ${totals["discount_amount"]:.2f}.', 'success')
+    flash(vip_message if is_vip else f'Promo code "{code}" applied! You saved ${totals["discount_amount"]:.2f}.', 'success')
     return redirect(url_for('cart.checkout'))
 
 @cart_bp.route('/remove-promo', methods=['POST'])
