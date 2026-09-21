@@ -551,6 +551,40 @@ footer a:hover {
   border-radius: 4px;
 }
 
+/* Card Declined Screen Darkening & Spotlight Overlay */
+.decline-spotlight-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.80);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 1055;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  cursor: pointer;
+}
+
+.decline-spotlight-card {
+  position: relative;
+  z-index: 1060 !important;
+  background: #ffffff !important;
+  border: 2px solid #dc3545 !important;
+  border-left: 8px solid #dc3545 !important;
+  box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.45), 0 20px 60px rgba(0, 0, 0, 0.75), 0 0 45px rgba(220, 53, 69, 0.35) !important;
+  animation: declineGlowPulse 2.5s infinite ease-in-out;
+}
+
+@keyframes declineGlowPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.45), 0 20px 60px rgba(0, 0, 0, 0.75), 0 0 35px rgba(220, 53, 69, 0.3) !important;
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(220, 53, 69, 0.65), 0 25px 70px rgba(0, 0, 0, 0.85), 0 0 55px rgba(220, 53, 69, 0.55) !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

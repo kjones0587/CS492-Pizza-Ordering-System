@@ -891,6 +891,12 @@ function fillDemoCard(type) {
 // Initialize payment method and order type visual state on load
 document.addEventListener('DOMContentLoaded', function() {
     togglePaymentMethod();
+    {% if payment_error %}
+    // Auto-advance directly to Step 2 so payment fields are immediately visible on decline
+    if (typeof goToStep === 'function') {
+        goToStep(2);
+    }
+    {% endif %}
 });
 </script>
 

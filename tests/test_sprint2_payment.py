@@ -208,6 +208,14 @@ def test_order_submission_with_declined_card_fails(client, app):
     assert "Transaction Declined" in html
     assert "Card Declined" in html
 
+    # Verify darkened screen backdrop and elevated spotlight card elements exist
+    assert 'id="decline-spotlight-backdrop"' in html
+    assert 'id="decline-spotlight-banner"' in html
+    assert 'decline-spotlight-card' in html
+    assert 'Your order was NOT placed and your card was NOT charged.' in html
+    assert 'Update Payment Details (Step 2)' in html
+    assert 'dismissDeclineSpotlight()' in html
+
     # Verify input data was strictly preserved in the form after card decline
     assert 'value="Test User"' in html
     assert 'value="test@example.com"' in html
