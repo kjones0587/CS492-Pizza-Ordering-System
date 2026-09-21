@@ -17,8 +17,8 @@
         <div class="col-lg-7">
             <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
                 <!-- 2-Step Guided Checkout Stepper Header -->
-                <div class="d-flex align-items-center justify-content-between mb-4 pb-3 border-bottom">
-                    <div class="d-flex align-items-center gap-2 cursor-pointer" onclick="goToStep(1)" id="step-nav-1" style="cursor: pointer;">
+                <div class="d-flex align-items-center justify-content-between mb-4 pb-3 border-bottom" role="tablist" aria-label="Checkout Progress">
+                    <div class="d-flex align-items-center gap-2 cursor-pointer" onclick="goToStep(1)" onkeydown="if(event.key==='Enter'||event.key===' ')goToStep(1)" id="step-nav-1" style="cursor: pointer;" role="tab" tabindex="0" aria-selected="true" aria-current="step" aria-label="Step 1: Contact and Delivery Details">
                         <span class="badge rounded-circle p-2 fs-6 bg-danger" id="step-badge-1">1</span>
                         <div>
                             <div class="fw-bold text-dark small text-uppercase">Step 1</div>
@@ -26,7 +26,7 @@
                         </div>
                     </div>
                     <div class="flex-grow-1 mx-3 border-top border-2" id="step-connector"></div>
-                    <div class="d-flex align-items-center gap-2" id="step-nav-2" style="cursor: pointer;" onclick="goToStep(2)">
+                    <div class="d-flex align-items-center gap-2" id="step-nav-2" style="cursor: pointer;" onclick="goToStep(2)" onkeydown="if(event.key==='Enter'||event.key===' ')goToStep(2)" role="tab" tabindex="0" aria-selected="false" aria-label="Step 2: Payment and Order Review">
                         <span class="badge rounded-circle p-2 fs-6 bg-light text-muted border" id="step-badge-2">2</span>
                         <div>
                             <div class="fw-bold text-muted small text-uppercase" id="step-title-2">Step 2</div>
@@ -287,6 +287,23 @@
                                             <small class="text-muted">Exact cash is appreciated. Our drivers carry up to $20 in change.</small>
                                         </div>
                                     </div>
+                                <!-- PCI-DSS Security & Data Privacy Trust Banner (PB-11 / PB-12: Ayden Lotter) -->
+                                <div class="bg-white border rounded-3 p-3 mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2 shadow-sm" id="pci-trust-banner">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="bg-success-subtle text-success rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                                            <i class="bi bi-shield-lock-fill fs-5"></i>
+                                        </div>
+                                        <div>
+                                            <div class="small fw-bold text-dark d-flex align-items-center gap-1">
+                                                <span>256-Bit SSL Encrypted & PCI-DSS Compliant</span>
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-1" style="font-size: 0.65rem;">SECURE</span>
+                                            </div>
+                                            <div class="text-muted" style="font-size: 0.75rem;">Instant Mock Tokenization • Zero Plain-Text PAN Storage</div>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1" style="font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#pciComplianceModal" aria-label="View security and compliance details">
+                                        <i class="bi bi-info-circle me-1"></i> Security Details
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -515,7 +532,18 @@ function goToStep(stepNumber) {
         if (step1) step1.classList.add('d-none');
         if (step2) step2.classList.remove('d-none');
 
-        // Update stepper badges
+        // Update stepper badges and accessibility
+        const nav1 = document.getElementById('step-nav-1');
+        const nav2 = document.getElementById('step-nav-2');
+        if (nav1) {
+            nav1.removeAttribute('aria-current');
+            nav1.setAttribute('aria-selected', 'false');
+        }
+        if (nav2) {
+            nav2.setAttribute('aria-current', 'step');
+            nav2.setAttribute('aria-selected', 'true');
+        }
+
         if (badge1) {
             badge1.className = 'badge rounded-circle p-2 fs-6 bg-success text-white';
             badge1.innerHTML = '<i class="bi bi-check-lg"></i>';
@@ -531,6 +559,17 @@ function goToStep(stepNumber) {
         // Return to step 1
         if (step2) step2.classList.add('d-none');
         if (step1) step1.classList.remove('d-none');
+
+        const nav1 = document.getElementById('step-nav-1');
+        const nav2 = document.getElementById('step-nav-2');
+        if (nav1) {
+            nav1.setAttribute('aria-current', 'step');
+            nav1.setAttribute('aria-selected', 'true');
+        }
+        if (nav2) {
+            nav2.removeAttribute('aria-current');
+            nav2.setAttribute('aria-selected', 'false');
+        }
 
         if (badge1) {
             badge1.className = 'badge rounded-circle p-2 fs-6 bg-danger text-white';
@@ -852,4 +891,57 @@ document.addEventListener('DOMContentLoaded', function() {
     togglePaymentMethod();
 });
 </script>
+
+<!-- PCI-DSS Compliance & Privacy Modal (PB-11 / PB-12: Ayden Lotter) -->
+<div class="modal fade" id="pciComplianceModal" tabindex="-1" aria-labelledby="pciComplianceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header bg-dark text-white rounded-top-4 py-3">
+                <h5 class="modal-title d-flex align-items-center gap-2" id="pciComplianceModalLabel">
+                    <i class="bi bi-shield-check text-success fs-4"></i> Security & Payment Data Privacy
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="alert alert-success-subtle border border-success-subtle rounded-3 p-3 mb-3">
+                    <div class="d-flex gap-2">
+                        <i class="bi bi-lock-fill text-success fs-4"></i>
+                        <div>
+                            <strong class="text-success-emphasis d-block mb-1">Simulated PCI-DSS Level 1 Sandbox Environment</strong>
+                            <small class="text-muted">This senior capstone project strictly adheres to modern payment industry security standards and OWASP Top 10 guidelines.</small>
+                        </div>
+                    </div>
+                </div>
+
+                <h6 class="fw-bold text-dark mb-2">Our Security Commitments:</h6>
+                <ul class="list-unstyled small text-secondary d-flex flex-column gap-2 mb-3">
+                    <li class="d-flex align-items-start gap-2">
+                        <i class="bi bi-check-circle-fill text-success mt-1"></i>
+                        <span><strong>Zero Plain-Text Storage:</strong> Credit card numbers (PAN) and CVV security codes are never stored in databases, logs, or cookies.</span>
+                    </li>
+                    <li class="d-flex align-items-start gap-2">
+                        <i class="bi bi-check-circle-fill text-success mt-1"></i>
+                        <span><strong>Algorithmic Validation:</strong> Card numbers undergo strict Modulo 10 Luhn checksum verification prior to transmission.</span>
+                    </li>
+                    <li class="d-flex align-items-start gap-2">
+                        <i class="bi bi-check-circle-fill text-success mt-1"></i>
+                        <span><strong>Session Hardening:</strong> All HTTP transactions utilize cryptographically signed session cookies with <code>HTTPOnly</code> and <code>SameSite=Lax</code> flags.</span>
+                    </li>
+                    <li class="d-flex align-items-start gap-2">
+                        <i class="bi bi-check-circle-fill text-success mt-1"></i>
+                        <span><strong>CSRF Protection:</strong> Cross-Site Request Forgery tokens protect all state-changing actions across the application.</span>
+                    </li>
+                </ul>
+
+                <div class="bg-light p-3 rounded-3 small text-muted">
+                    <i class="bi bi-terminal me-1 text-primary"></i>
+                    <strong>Audit Trail:</strong> Only sanitized gateway reference IDs (e.g. <code>TXN-...</code>), card brand, and masked last 4 digits are recorded on order receipts for customer verification.
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-secondary btn-sm rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
