@@ -1,6 +1,6 @@
 from functools import wraps
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from app.models import db, Order, Manager
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
+from app.models import db, Order, Manager, Category, MenuItem
 
 staff_bp = Blueprint('staff', __name__)
 
@@ -84,3 +84,52 @@ def update_status(order_id):
         flash('Invalid order status.', 'danger')
 
     return redirect(url_for('staff.orders', status=request.form.get('current_filter', 'all')))
+ 
++
++@staff_bp.route('/menu')
++def menu():
++    """Staff Menu Management Dashboard (PB-08: Nicholas Lattimore)"""
++    category_filter = request.args.get('category', 'all')
++    categories = Category.query.order_by(Category.display_order).all()
++
++    query = MenuItem.query.join(Category)
++    if category_filter and category_filter != 'all':
++        query = query.filter(Category.slug == category_filter)
++
++    items = query.order_by(Category.display_order, MenuItem.name).all()
++
++    total_items = MenuItem.query.count()
++    in_stock_count = MenuItem.query.filter_by(is_available=True).count()
++    sold_out_count = MenuItem.query.filter_by(is_available=False).count()
++
++    return render_template(
++        'staff/menu.html',
++        items=items,
++        categories=categories,
++        current_category=category_filter,
++        total_items=total_items,
++        in_stock_count=in_stock_count,
++        sold_out_count=sold_out_count
++    )
++
++
++@staff_bp.route('/menu/<int:item_id>/toggle-status', methods=['POST'])
++def toggle_item_status(item_id):
++    """Toggle menu item availability between In Stock and Sold Out (PB-08: Nicholas Lattimore)"""
++    item = db.get_or_404(MenuItem, item_id)
++    item.is_available = not item.is_available
++    db.session.commit()
++
++    status_str = 'In Stock' if item.is_available else 'Sold Out'
++    flash(f"'{item.name}' is now marked as {status_str}.", 'success' if item.is_available else 'warning')
++
++    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
++        return jsonify({
++            'success': True,
++            'item_id': item.id,
++            'item_name': item.name,
++            'is_available': item.is_available,
++            'status_text': status_str
++        })
++
++    return redirect(url_for('staff.menu', category=request.form.get('current_category', 'all')))
