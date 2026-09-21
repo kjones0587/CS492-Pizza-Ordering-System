@@ -39,14 +39,39 @@ main {
   color: var(--primary-pizza) !important;
 }
 
-.nav-link {
+.navbar-nav .nav-link {
   font-weight: 600;
   color: #334155 !important;
   transition: color 0.15s ease-in-out;
 }
 
-.nav-link:hover, .nav-link.active {
+.navbar-nav .nav-link:hover, .navbar-nav .nav-link.active {
   color: var(--primary-pizza) !important;
+}
+
+/* Staff Management Navigation Bar Tabs */
+.staff-nav-pills .nav-link {
+  color: #475569 !important;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.55rem 1.25rem;
+  font-weight: 600;
+  font-size: 0.925rem;
+  transition: all 0.15s ease-in-out;
+}
+
+.staff-nav-pills .nav-link:hover {
+  color: #0f172a !important;
+  background-color: #e2e8f0;
+  border-color: #cbd5e1;
+}
+
+.staff-nav-pills .nav-link.active {
+  color: #ffffff !important;
+  background-color: #1e293b !important;
+  border-color: #1e293b !important;
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.25);
 }
 
 a:focus-visible,
