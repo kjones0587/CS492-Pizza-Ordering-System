@@ -14,7 +14,10 @@
             <h1 class="fw-bold text-dark mt-1 mb-0">Incoming Orders Dashboard</h1>
             <p class="text-muted mb-0">Live monitoring of customer submitted orders and kitchen preparation status.</p>
         </div>
-        <div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('staff.menu') }}" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-card-list me-1"></i> Menu Management
+            </a>
             <a href="{{ url_for('staff.orders') }}" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-arrow-clockwise me-1"></i> Refresh Live Orders
             </a>
