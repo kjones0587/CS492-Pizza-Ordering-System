@@ -1,0 +1,430 @@
+{% extends "base.html" %}
+
+{% block title %}Live Order Tracker - {{ order.order_number }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            <!-- Breadcrumb Navigation -->
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('menu.index') }}" class="text-decoration-none text-danger"><i class="bi bi-house-door me-1"></i>Menu</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('order.confirmation', order_number=order.order_number) }}" class="text-decoration-none text-muted">Order Confirmation</a></li>
+                    <li class="breadcrumb-item active fw-semibold" aria-current="page">Live Tracker</li>
+                </ol>
+            </nav>
+
+            <!-- Live Status Hero Card -->
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                <div class="bg-dark text-white p-4 p-md-5 position-relative" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                        <span class="badge bg-danger px-3 py-2 fs-6">
+                            <i class="bi bi-broadcast animate-pulse me-1"></i> LIVE ORDER TRACKER
+                        </span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-light bg-opacity-25 text-white px-3 py-2 font-monospace">
+                                {{ order.order_number }}
+                            </span>
+                            <span class="badge bg-success bg-opacity-75 text-white px-2 py-1 small" id="livePollingIndicator">
+                                <i class="bi bi-arrow-repeat me-1"></i>Live Polling
+                            </span>
+                        </div>
+                    </div>
+
+                    <h1 class="fw-bold mb-2">Hello, {{ order.customer_name }}!</h1>
+                    <p class="text-white-50 lead mb-4" id="trackerHeaderSubtitle">
+                        {% if order.status == 'Received' %}
+                            We've received your order and the kitchen has it queued up!
+                        {% elif order.status == 'Preparing' %}
+                            Our kitchen team is hand-tossing the dough and layering fresh toppings.
+                        {% elif order.status == 'Ready' %}
+                            {% if order.order_type == 'delivery' %}
+                                Your order is hot, packaged, and out for delivery!
+                            {% else %}
+                                Your order is fresh out of the stone oven and ready for pickup!
+                            {% endif %}
+                        {% elif order.status == 'Completed' %}
+                            This order is complete. We hope you enjoy every bite!
+                        {% elif order.status == 'Cancelled' %}
+                            This order has been cancelled. Please contact our support team.
+                        {% else %}
+                            Status update: {{ order.status }}.
+                        {% endif %}
+                    </p>
+
+                    <!-- Key Metadata Pills -->
+                    <div class="d-flex flex-wrap gap-3">
+                        <div class="bg-white bg-opacity-10 rounded-3 px-3 py-2">
+                            <small class="text-uppercase text-white-50 fw-bold d-block" style="font-size: 0.75rem;">Fulfillment</small>
+                            <span class="fw-semibold text-white">
+                                {% if order.order_type == 'delivery' %}
+                                    <i class="bi bi-bicycle text-warning me-1"></i> Delivery
+                                {% else %}
+                                    <i class="bi bi-shop text-success me-1"></i> In-Store Pickup
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="bg-white bg-opacity-10 rounded-3 px-3 py-2">
+                            <small class="text-uppercase text-white-50 fw-bold d-block" style="font-size: 0.75rem;">Estimated Ready Time</small>
+                            <span class="fw-semibold text-warning" id="trackerEstimatedTime">
+                                {% if order.order_type == 'delivery' %}
+                                    {{ estimates.delivery_time if estimates else '40 - 50 mins' }}
+                                {% else %}
+                                    {{ estimates.pickup_time if estimates else '20 - 25 mins' }}
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="bg-white bg-opacity-10 rounded-3 px-3 py-2">
+                            <small class="text-uppercase text-white-50 fw-bold d-block" style="font-size: 0.75rem;">Payment</small>
+                            <span class="fw-semibold text-white">
+                                {% if order.payment_method == 'vip_pass' %}
+                                    <i class="bi bi-mortarboard-fill text-primary me-1"></i> VIP Pass
+                                {% elif order.payment_method == 'cash' %}
+                                    <i class="bi bi-cash text-success me-1"></i> Cash on Arrival
+                                {% else %}
+                                    <i class="bi bi-credit-card-2-front text-danger me-1"></i> Paid ({{ order.card_brand or 'Card' }})
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progress Stepper (PB-05 / PB-10: Ayden Lotter) -->
+                <div class="card-body p-4 p-md-5 bg-white">
+                    <h5 class="fw-bold text-dark mb-4"><i class="bi bi-activity text-danger me-2"></i>Preparation Progress</h5>
+
+                    {% if order.status == 'Cancelled' %}
+                    <div class="alert alert-danger rounded-3 d-flex align-items-center mb-0">
+                        <i class="bi bi-x-octagon-fill fs-3 me-3"></i>
+                        <div>
+                            <strong>Order Cancelled</strong>
+                            <p class="mb-0 small">This order was cancelled. If you have questions or need assistance, please call us directly at <strong>(555) 749-9201</strong>.</p>
+                        </div>
+                    </div>
+                    {% else %}
+                    <!-- Responsive 4-Step Stepper -->
+                    <div class="tracker-stepper mb-4">
+                        <!-- Step 1: Received -->
+                        <div class="stepper-step {% if current_step > 1 %}step-done{% elif current_step == 1 %}step-active{% else %}step-pending{% endif %}" id="step1">
+                            <div class="step-icon-wrap">
+                                <div class="step-icon">
+                                    <i class="bi bi-receipt"></i>
+                                </div>
+                            </div>
+                            <div class="step-content">
+                                <h6 class="step-title">1. Received</h6>
+                                <p class="step-desc text-muted mb-0">Order confirmed & queued in kitchen</p>
+                            </div>
+                        </div>
+
+                        <div class="stepper-connector {% if current_step > 1 %}connector-done{% endif %}" id="conn1"></div>
+
+                        <!-- Step 2: Preparing -->
+                        <div class="stepper-step {% if current_step > 2 %}step-done{% elif current_step == 2 %}step-active{% else %}step-pending{% endif %}" id="step2">
+                            <div class="step-icon-wrap">
+                                <div class="step-icon">
+                                    <i class="bi bi-egg-fried"></i>
+                                </div>
+                            </div>
+                            <div class="step-content">
+                                <h6 class="step-title">2. Preparing</h6>
+                                <p class="step-desc text-muted mb-0">Hand-tossing dough & fresh toppings</p>
+                            </div>
+                        </div>
+
+                        <div class="stepper-connector {% if current_step > 2 %}connector-done{% endif %}" id="conn2"></div>
+
+                        <!-- Step 3: Stone Oven -->
+                        <div class="stepper-step {% if current_step > 3 %}step-done{% elif current_step == 3 %}step-active{% else %}step-pending{% endif %}" id="step3">
+                            <div class="step-icon-wrap">
+                                <div class="step-icon">
+                                    <i class="bi bi-fire"></i>
+                                </div>
+                            </div>
+                            <div class="step-content">
+                                <h6 class="step-title">3. Stone Oven</h6>
+                                <p class="step-desc text-muted mb-0">Baking at 700° in deck oven</p>
+                            </div>
+                        </div>
+
+                        <div class="stepper-connector {% if current_step >= 4 %}connector-done{% endif %}" id="conn3"></div>
+
+                        <!-- Step 4: Ready / Delivery -->
+                        <div class="stepper-step {% if current_step >= 4 %}step-done{% elif current_step == 3 %}step-active{% else %}step-pending{% endif %}" id="step4">
+                            <div class="step-icon-wrap">
+                                <div class="step-icon">
+                                    {% if order.order_type == 'delivery' %}
+                                        <i class="bi bi-bicycle"></i>
+                                    {% else %}
+                                        <i class="bi bi-bag-check"></i>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="step-content">
+                                <h6 class="step-title">
+                                    {% if order.order_type == 'delivery' %}4. Out for Delivery{% else %}4. Ready for Pickup{% endif %}
+                                </h6>
+                                <p class="step-desc text-muted mb-0">
+                                    {% if order.order_type == 'delivery' %}Driver heading to your address{% else %}Waiting at the front pickup counter{% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Details & Itemized Summary Row -->
+            <div class="row g-4 mb-4">
+                <!-- Fulfillment Address & Instructions -->
+                <div class="col-md-5">
+                    <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+                        <h6 class="text-uppercase text-muted fw-bold small mb-3">
+                            <i class="bi bi-geo-alt-fill text-danger me-1"></i> Fulfillment Destination
+                        </h6>
+                        {% if order.order_type == 'delivery' %}
+                            <p class="fw-bold text-dark mb-1">{{ order.customer_name }}</p>
+                            <p class="text-muted mb-2"><i class="bi bi-geo me-1 text-danger"></i> {{ order.delivery_address }}</p>
+                            <p class="text-muted small mb-0"><i class="bi bi-telephone me-1"></i> {{ order.customer_phone }}</p>
+                        {% else %}
+                            <p class="fw-bold text-dark mb-1">Granite Canyon Pizza Lobby</p>
+                            <p class="text-muted mb-2"><i class="bi bi-geo me-1 text-danger"></i> {{ restaurant.address if restaurant else '123 Granite Canyon Blvd' }}</p>
+                            <div class="p-2 bg-light rounded-3 small text-muted">
+                                Head to the inside pickup counter with order number <strong>{{ order.order_number }}</strong>.
+                            </div>
+                        {% endif %}
+
+                        {% if order.special_instructions %}
+                        <div class="mt-3 pt-3 border-top">
+                            <h6 class="text-uppercase text-muted fw-bold small mb-1">Delivery / Order Notes</h6>
+                            <p class="small text-dark mb-0 bg-light p-2 rounded">{{ order.special_instructions }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Itemized Receipt Capsule -->
+                <div class="col-md-7">
+                    <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="text-uppercase text-muted fw-bold small mb-0">
+                                <i class="bi bi-receipt text-danger me-1"></i> Order Items ({{ item_count }})
+                            </h6>
+                            <span class="badge bg-light text-dark border">${{ "%.2f"|format(order.total_amount) }} Total</span>
+                        </div>
+
+                        <ul class="list-group list-group-flush mb-3">
+                            {% for item in order.items %}
+                            <li class="list-group-item px-0 py-2 d-flex justify-content-between align-items-start border-light">
+                                <div class="ms-0 me-auto">
+                                    <div class="fw-bold text-dark">{{ item.quantity }}x {{ item.item_name }}</div>
+                                    <div class="small text-muted">
+                                        {% if item.size_option %}{{ item.size_option }}{% endif %}
+                                        {% if item.crust_option %} • {{ item.crust_option }}{% endif %}
+                                    </div>
+                                    {% if item.toppings %}
+                                        <div class="small text-danger">+ {{ item.toppings }}</div>
+                                    {% endif %}
+                                </div>
+                                <span class="fw-semibold text-dark">${{ "%.2f"|format(item.line_total) }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+
+                        <div class="pt-2 border-top small">
+                            <div class="d-flex justify-content-between text-muted mb-1">
+                                <span>Subtotal:</span>
+                                <span>${{ "%.2f"|format(order.subtotal) }}</span>
+                            </div>
+                            {% if order.discount_amount and order.discount_amount > 0 %}
+                            <div class="d-flex justify-content-between text-success mb-1">
+                                <span>Promo Discount ({{ order.promo_code }}):</span>
+                                <span>-${{ "%.2f"|format(order.discount_amount) }}</span>
+                            </div>
+                            {% endif %}
+                            {% if order.delivery_fee and order.delivery_fee > 0 %}
+                            <div class="d-flex justify-content-between text-muted mb-1">
+                                <span>Delivery Fee:</span>
+                                <span>${{ "%.2f"|format(order.delivery_fee) }}</span>
+                            </div>
+                            {% endif %}
+                            <div class="d-flex justify-content-between text-muted mb-1">
+                                <span>Sales Tax:</span>
+                                <span>${{ "%.2f"|format(order.tax_amount) }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between fw-bold fs-6 text-dark pt-1 border-top">
+                                <span>Total:</span>
+                                <span class="text-danger">${{ "%.2f"|format(order.total_amount) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Navigation & Support Links -->
+            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <a href="{{ url_for('order.confirmation', order_number=order.order_number) }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-printer me-1"></i> View / Print Official Receipt
+                    </a>
+                    <a href="{{ url_for('menu.index') }}" class="btn btn-danger btn-sm">
+                        <i class="bi bi-plus-circle me-1"></i> Order Another Pizza
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Progress Stepper Custom Styling -->
+<style>
+.tracker-stepper {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    position: relative;
+    padding: 10px 0;
+}
+.stepper-step {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    z-index: 2;
+}
+.step-icon-wrap {
+    margin-bottom: 12px;
+}
+.step-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    transition: all 0.3s ease;
+}
+.step-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+}
+.step-desc {
+    font-size: 0.78rem;
+    max-width: 140px;
+}
+.stepper-connector {
+    flex: 1;
+    height: 4px;
+    background-color: #e2e8f0;
+    margin-top: 24px;
+    position: relative;
+    z-index: 1;
+    transition: background-color 0.4s ease;
+}
+.connector-done {
+    background-color: #198754 !important;
+}
+
+/* State Styling */
+.step-done .step-icon {
+    background-color: #198754;
+    color: #ffffff;
+    box-shadow: 0 4px 10px rgba(25, 135, 84, 0.25);
+}
+.step-done .step-title {
+    color: #198754;
+}
+
+.step-active .step-icon {
+    background-color: #dc3545;
+    color: #ffffff;
+    box-shadow: 0 0 0 6px rgba(220, 53, 69, 0.2);
+    animation: pulse-ring 2s infinite;
+}
+.step-active .step-title {
+    color: #dc3545;
+}
+
+.step-pending .step-icon {
+    background-color: #f1f5f9;
+    color: #94a3b8;
+    border: 2px dashed #cbd5e1;
+}
+.step-pending .step-title {
+    color: #94a3b8;
+}
+
+@keyframes pulse-ring {
+    0% {
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+    }
+}
+
+@media (max-width: 768px) {
+    .tracker-stepper {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 20px;
+    }
+    .stepper-step {
+        flex-direction: row;
+        align-items: center;
+        text-align: left;
+    }
+    .step-icon-wrap {
+        margin-bottom: 0;
+        margin-right: 15px;
+    }
+    .stepper-connector {
+        display: none;
+    }
+    .step-desc {
+        max-width: 100%;
+    }
+}
+</style>
+
+<!-- Live Polling Script for Order Status Updates (PB-05 / PB-10: Ayden Lotter) -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const orderNumber = "{{ order.order_number }}";
+    let currentStatus = "{{ order.status }}";
+    const statusApiUrl = "{{ url_for('order.order_status_api', order_number=order.order_number) }}";
+
+    function pollOrderStatus() {
+        fetch(statusApiUrl)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.status !== currentStatus) {
+                    // Status changed on server! Refresh page to update progress stepper smoothly
+                    const indicator = document.getElementById('livePollingIndicator');
+                    if (indicator) {
+                        indicator.className = 'badge bg-warning text-dark px-2 py-1 small animate-pulse';
+                        indicator.innerHTML = '<i class="bi bi-bell-fill me-1"></i>Status Updated!';
+                    }
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 800);
+                }
+            })
+            .catch(err => {
+                console.warn('Live order tracker polling error:', err);
+            });
+    }
+
+    // Poll every 8 seconds for live progress updates
+    setInterval(pollOrderStatus, 8000);
+});
+</script>
+{% endblock %}
