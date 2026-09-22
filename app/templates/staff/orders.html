@@ -31,6 +31,9 @@
                 <a href="{{ url_for('staff.menu') }}" class="nav-link">
                     <i class="bi bi-card-list me-1"></i> Menu Management
                 </a>
+                <a href="{{ url_for('staff.promos') }}" class="nav-link">
+                    <i class="bi bi-tag me-1"></i> Promo Codes
+                </a>
             </div>
             <div class="d-flex align-items-center gap-2">
                 {% if session.get('staff_username') %}
