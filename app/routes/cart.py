@@ -70,9 +70,19 @@ def get_cart():
         if size_opt and ('(' in size_opt and ')' not in size_opt):
             needs_repair = True
 
-        if needs_repair:
-            menu_item = db.session.get(MenuItem, menu_item_id)
-            if menu_item:
+        menu_item = db.session.get(MenuItem, menu_item_id)
+        if menu_item:
+            cat_name = (menu_item.category.name if menu_item.category else '').lower()
+            item_name = (item.get('name') or menu_item.name or '').lower()
+            is_pizza = bool(menu_item.is_pizza or 'pizza' in cat_name or 'build your own' in cat_name or 'pizza' in item_name or 'calzone' in item_name or 'margherita' in item_name or item.get('crust_option'))
+            item['is_pizza'] = is_pizza
+
+            # Non-pizza items (sodas, salads, fries, etc.) should never have toppings
+            if not is_pizza and item.get('toppings'):
+                item['toppings'] = []
+                cart_modified = True
+
+            if needs_repair:
                 options = menu_item.get_options()
                 matched_size = match_option(options.get('sizes', []), size_opt)
                 if matched_size:
@@ -85,7 +95,7 @@ def get_cart():
                         item['crust_option'] = matched_crust['name']
                         new_unit += matched_crust.get('price_modifier', 0.0)
                         
-                    if item.get('toppings') and 'toppings' in options:
+                    if is_pizza and item.get('toppings') and 'toppings' in options:
                         top_map = {t['name']: t.get('price_modifier', 0.0) for t in options['toppings']}
                         for t_name in item['toppings']:
                             new_unit += top_map.get(t_name, 0.0)
@@ -94,6 +104,12 @@ def get_cart():
                     item['unit_price'] = new_unit
                     item['line_total'] = round(new_unit * item.get('quantity', 1), 2)
                     cart_modified = True
+        else:
+            item_name = (item.get('name') or '').lower()
+            item['is_pizza'] = bool('pizza' in item_name or 'margherita' in item_name or 'calzone' in item_name or item.get('crust_option'))
+            if not item['is_pizza'] and item.get('toppings'):
+                item['toppings'] = []
+                cart_modified = True
 
     if cart_modified:
         session['cart'] = cart
@@ -244,9 +260,10 @@ def add_to_cart():
             unit_price += matched_crust.get('price_modifier', 0.0)
             crust_name = matched_crust['name']
 
-    # Validate and calculate extra toppings
+    # Validate and calculate extra toppings (only permitted for pizza items)
+    is_pizza = item.is_pizza
     valid_toppings = []
-    if selected_toppings and 'toppings' in options:
+    if is_pizza and selected_toppings and 'toppings' in options:
         for top in selected_toppings:
             matched_top = match_option(options['toppings'], top)
             if matched_top:
@@ -284,7 +301,8 @@ def add_to_cart():
             'image_url': item.image_url,
             'size_option': size_name or None,
             'crust_option': crust_name or None,
-            'toppings': valid_toppings,
+            'is_pizza': is_pizza,
+            'toppings': valid_toppings if is_pizza else [],
             'special_notes': special_notes or None,
             'unit_price': unit_price,
             'quantity': quantity,
@@ -431,6 +449,13 @@ def update_toppings():
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'success': False, 'message': 'Menu item not found.'}), 400
         flash('Menu item not found.', 'danger')
+        return redirect(url_for('cart.index'))
+
+    # Toppings are only allowed for pizza items
+    if not menu_item.is_pizza:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'Toppings are only available for pizzas.'}), 400
+        flash('Toppings are only available for pizzas.', 'warning')
         return redirect(url_for('cart.index'))
 
     options = menu_item.get_options()

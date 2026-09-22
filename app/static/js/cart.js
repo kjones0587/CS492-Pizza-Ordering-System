@@ -252,9 +252,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             document.getElementById('modal-crusts-section').style.display = 'none';
                         }
 
-                        // Render Toppings (Tasks T1-03 / T1-04)
+                        // Render Toppings (Only for Pizzas)
+                        const isPizza = item.is_pizza || 
+                                        (item.category_name && item.category_name.toLowerCase().includes('pizza')) || 
+                                        (item.name && item.name.toLowerCase().includes('pizza')) ||
+                                        (item.name && (item.name.toLowerCase().includes('margherita') || item.name.toLowerCase().includes('calzone')));
                         if (modalToppingsContainer) modalToppingsContainer.innerHTML = '';
-                        if (item.options && item.options.toppings && item.options.toppings.length > 0) {
+                        if (isPizza && item.options && item.options.toppings && item.options.toppings.length > 0) {
                             if (modalToppingsSection) modalToppingsSection.style.display = 'block';
                             if (toppingsCountBadge) {
                                 toppingsCountBadge.textContent = '0 selected';
@@ -742,6 +746,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 activeRow = editToppingsBtn.closest('.cart-row');
                 if (!activeRow) return;
+                if (activeRow.dataset.isPizza !== 'true') return;
 
                 const index = activeRow.dataset.index;
                 const menuItemId = activeRow.dataset.menuItemId;

@@ -41,7 +41,16 @@ class MenuItem(db.Model):
                 return {}
         return {}
 
+    @property
+    def is_pizza(self):
+        cat_name = (self.category.name if self.category else '').lower()
+        name_lower = (self.name or '').lower()
+        return bool('pizza' in cat_name or 'build your own' in cat_name or 'pizza' in name_lower or 'calzone' in name_lower or 'margherita' in name_lower)
+
     def to_dict(self):
+        options = self.get_options()
+        if not self.is_pizza and 'toppings' in options:
+            del options['toppings']
         return {
             'id': self.id,
             'name': self.name,
@@ -51,7 +60,8 @@ class MenuItem(db.Model):
             'is_available': self.is_available,
             'category_id': self.category_id,
             'category_name': self.category.name if self.category else '',
-            'options': self.get_options()
+            'is_pizza': self.is_pizza,
+            'options': options
         }
 
     def __repr__(self):

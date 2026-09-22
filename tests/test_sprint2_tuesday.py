@@ -454,3 +454,89 @@ def test_dynamic_stepper_variability_by_order_items(client):
     assert combo_api['order_category'] == 'pizza'
     assert combo_api['total_steps'] == 4
 
+
+def test_non_pizza_items_exclude_toppings(client):
+    """Verify that only pizzas can have toppings, and non-pizzas (salads, sodas, dough knots) never have toppings."""
+    client.post('/cart/clear')
+
+    # 1. Verify MenuItem to_dict() for non-pizza items omits toppings
+    salad = MenuItem.query.filter_by(name='Classic Caesar Salad').first()
+    soda = MenuItem.query.filter_by(name='Fountain Soda (20 oz)').first()
+    knots = MenuItem.query.filter_by(name='Garlic Herb Dough Knots').first()
+    pizza = MenuItem.query.filter_by(name='Pepperoni Rustica').first()
+
+    assert salad is not None and not salad.is_pizza
+    assert soda is not None and not soda.is_pizza
+    assert knots is not None and not knots.is_pizza
+    assert pizza is not None and pizza.is_pizza
+
+    salad_dict = salad.to_dict()
+    assert 'toppings' not in salad_dict['options']
+
+    soda_dict = soda.to_dict()
+    assert 'toppings' not in soda_dict['options']
+
+    pizza_dict = pizza.to_dict()
+    assert 'toppings' in pizza_dict['options']
+    assert len(pizza_dict['options']['toppings']) > 0
+
+    # 2. Add non-pizza items (with sizes) and a pizza to the cart
+    client.post('/cart/add', data={
+        'menu_item_id': knots.id,
+        'size_option': '12-Piece Order',
+        'quantity': 1
+    })
+    client.post('/cart/add', data={
+        'menu_item_id': salad.id,
+        'size_option': 'Side Bowl',
+        'quantity': 1
+    })
+    client.post('/cart/add', data={
+        'menu_item_id': soda.id,
+        'size_option': 'Coca-Cola',
+        'quantity': 2
+    })
+    client.post('/cart/add', data={
+        'menu_item_id': pizza.id,
+        'size_option': 'Personal (10")',
+        'crust_option': 'Classic Hand-Tossed',
+        'toppings': ['Pepperoni'],
+        'quantity': 1
+    })
+
+    # 3. Verify in /cart/ HTML:
+    cart_res = client.get('/cart/')
+    assert cart_res.status_code == 200
+    cart_html = cart_res.data.decode('utf-8')
+
+    # Non-pizza rows have data-is-pizza="false" (knots, salad, soda = 3)
+    assert cart_html.count('data-is-pizza="false"') == 3
+    assert cart_html.count('data-is-pizza="true"') == 1
+
+    # Exactly 1 toppings container in total across the entire cart (only for the 1 pizza, 0 for knots/salad/soda)
+    assert cart_html.count('cart-toppings-container') == 1
+    # But Pepperoni topping must display under the pizza
+    assert 'Pepperoni' in cart_html
+
+    # 4. Attempting to add toppings to a non-pizza via /cart/update-toppings must fail
+    # Index 0 is Garlic Herb Dough Knots
+    res_update_knots = client.post('/cart/update-toppings', data={
+        'index': 0,
+        'toppings': ['Pepperoni']
+    }, headers={'X-Requested-With': 'XMLHttpRequest'})
+    assert res_update_knots.status_code == 400
+    assert 'Toppings are only available for pizzas' in res_update_knots.get_json()['message']
+
+    # 5. Attempting to pass toppings in /cart/add for a non-pizza item is sanitized/ignored
+    client.post('/cart/clear')
+    client.post('/cart/add', data={
+        'menu_item_id': salad.id,
+        'size_option': 'Side Bowl',
+        'toppings': ['Pepperoni', 'Extra Whole Milk Mozzarella'],
+        'quantity': 1
+    })
+    with client.session_transaction() as sess:
+        assert sess['cart'][0]['toppings'] == []
+        assert sess['cart'][0]['unit_price'] == salad.base_price
+
+

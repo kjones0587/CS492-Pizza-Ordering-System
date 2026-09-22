@@ -79,15 +79,24 @@ def seed_database():
     seed_sprint2_defaults()
 
     if Category.query.first() is not None:
-        # Patch existing menu items if their toppings list differs from current POPULAR_TOPPINGS
+        # Ensure only pizza items have POPULAR_TOPPINGS, and strip toppings from non-pizza items
         updated = False
         for item in MenuItem.query.all():
+            cat_name = (item.category.name if item.category else '').lower()
+            item_name = (item.name or '').lower()
+            is_pizza = ('pizza' in cat_name or 'build your own' in cat_name or 'pizza' in item_name or 'calzone' in item_name or 'margherita' in item_name)
             opts = item.get_options()
-            if opts and 'sizes' in opts and opts.get('sizes'):
-                if opts.get('toppings') != POPULAR_TOPPINGS:
-                    opts['toppings'] = POPULAR_TOPPINGS
+            if not is_pizza:
+                if 'toppings' in opts:
+                    del opts['toppings']
                     item.options_json = json.dumps(opts)
                     updated = True
+            else:
+                if opts and 'sizes' in opts and opts.get('sizes'):
+                    if opts.get('toppings') != POPULAR_TOPPINGS:
+                        opts['toppings'] = POPULAR_TOPPINGS
+                        item.options_json = json.dumps(opts)
+                        updated = True
         if updated:
             db.session.commit()
         return

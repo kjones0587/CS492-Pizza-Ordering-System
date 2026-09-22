@@ -50,7 +50,7 @@
                             </thead>
                             <tbody id="cart-table-body">
                                 {% for item in cart %}
-                                <tr class="cart-row" data-index="{{ loop.index0 }}" data-menu-item-id="{{ item.menu_item_id }}" data-item-name="{{ item.name }}" data-size="{{ item.size_option or '' }}" data-crust="{{ item.crust_option or '' }}" data-quantity="{{ item.quantity }}" data-toppings='{{ (item.toppings or []) | tojson }}'>
+                                <tr class="cart-row" data-index="{{ loop.index0 }}" data-menu-item-id="{{ item.menu_item_id }}" data-item-name="{{ item.name }}" data-size="{{ item.size_option or '' }}" data-crust="{{ item.crust_option or '' }}" data-quantity="{{ item.quantity }}" data-toppings='{{ (item.toppings or []) | tojson }}' data-is-pizza="{{ 'true' if item.is_pizza else 'false' }}">
                                     <td class="ps-4 py-3">
                                         <div class="d-flex align-items-center">
                                             {% if item.image_url %}
@@ -66,8 +66,8 @@
                                                         <span class="badge bg-light text-dark border me-1">{{ item.crust_option }}</span>
                                                     {% endif %}
                                                 </div>
-                                                <!-- Toppings Display & Edit Trigger (Task T1-03: Kellen Jones) -->
-                                                {% if item.size_option %}
+                                                <!-- Toppings Display & Edit Trigger (Only for Pizzas) -->
+                                                {% if item.is_pizza %}
                                                 <div class="cart-toppings-container mt-1">
                                                     <div class="cart-toppings-display small text-muted {% if not item.toppings %}d-none{% endif %}">
                                                         <i class="bi bi-plus-circle-fill text-danger me-1" style="font-size: 0.75rem;"></i><span class="fw-semibold text-dark">Toppings:</span> 
