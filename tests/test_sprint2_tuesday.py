@@ -631,4 +631,103 @@ def test_multi_order_session_retention_and_switching(client):
         assert sess['active_order_number'] == order1.order_number
 
 
+def test_drinks_do_not_count_towards_large_order_notice(client):
+    """Verify drinks are excluded from kitchen prep thresholds and never trigger large order / group order notices."""
+    client.post('/cart/clear')
+
+    pizza = MenuItem.query.filter_by(name='Pepperoni Rustica').first()
+    soda = MenuItem.query.filter_by(name='Fountain Soda (20 oz)').first()
+    assert pizza is not None
+    assert soda is not None
+    assert pizza.is_pizza is True
+    assert pizza.is_drink is False
+    assert soda.is_pizza is False
+    assert soda.is_drink is True
+
+    # 1. User's exact scenario: 3 pizzas + 4 drinks = 7 items (more than half drinks)
+    # Previously triggered "Group Order Notice (7 items)" because 7 >= 6.
+    # Now: prep_item_count = 3 (< 6) -> Standard Order, notice is None!
+    client.post('/cart/add', data={'menu_item_id': pizza.id, 'quantity': 3})
+    client.post('/cart/add', data={'menu_item_id': soda.id, 'quantity': 4})
+
+    calc_res = client.post('/cart/calculate-api', json={'order_type': 'pickup'})
+    assert calc_res.status_code == 200
+    calc_data = calc_res.get_json()['totals']
+
+    assert calc_data['item_count'] == 7
+    assert calc_data['prep_item_count'] == 3
+    assert calc_data['drink_count'] == 4
+
+    est = calc_data['estimates']
+    assert est['tier'] == 'standard'
+    assert est['is_catering'] is False
+    assert est['notice'] is None
+    assert est['badge_text'] == 'Standard Order'
+    assert est['pickup_time'] == '20-25 mins'
+    assert est['delivery_time'] == '40-50 mins'
+
+    # Verify checkout screen does NOT render the yellow warning box
+    checkout_res = client.get('/cart/checkout')
+    assert checkout_res.status_code == 200
+    checkout_html = checkout_res.data.decode('utf-8')
+    assert 'id="catering-notice-box"' not in checkout_html
+    assert 'Group Order Notice' not in checkout_html
+    assert 'Ready in 20-25 mins' in checkout_html
+
+    # 2. Only drinks: 8 sodas = 8 items
+    # Drinks require 0 kitchen/oven preparation, so no large order notice!
+    client.post('/cart/clear')
+    client.post('/cart/add', data={'menu_item_id': soda.id, 'quantity': 8})
+    drink_calc = client.post('/cart/calculate-api', json={'order_type': 'pickup'}).get_json()['totals']
+    assert drink_calc['item_count'] == 8
+    assert drink_calc['prep_item_count'] == 0
+    assert drink_calc['drink_count'] == 8
+    assert drink_calc['estimates']['tier'] == 'standard'
+    assert drink_calc['estimates']['notice'] is None
+
+    # 3. Legitimate Group Food Order: 7 pizzas + 4 sodas = 11 items
+    # 7 pizzas >= 6 -> Group Order triggered for 7 food items!
+    client.post('/cart/clear')
+    client.post('/cart/add', data={'menu_item_id': pizza.id, 'quantity': 7})
+    client.post('/cart/add', data={'menu_item_id': soda.id, 'quantity': 4})
+    group_calc = client.post('/cart/calculate-api', json={'order_type': 'pickup'}).get_json()['totals']
+    assert group_calc['item_count'] == 11
+    assert group_calc['prep_item_count'] == 7
+    assert group_calc['drink_count'] == 4
+    assert group_calc['estimates']['tier'] == 'medium'
+    assert 'Group Order Notice (7 food items)' in group_calc['estimates']['notice']
+
+    group_checkout = client.get('/cart/checkout').data.decode('utf-8')
+    assert 'id="catering-notice-box"' in group_checkout
+    assert '7 Food Items' in group_checkout
+    assert 'Group Order' in group_checkout
+
+    # 4. Order and OrderItem model properties test
+    from app.models import Order, OrderItem
+    test_order = Order(
+        order_number='ORD-TEST-DRINK-01',
+        customer_name='Testing Drink Exclusion',
+        customer_email='drinks@test.com',
+        customer_phone='555-0199',
+        order_type='pickup',
+        subtotal=45.0,
+        tax_amount=3.71,
+        total_amount=48.71,
+        status='Received'
+    )
+    db.session.add(test_order)
+    db.session.commit()
+
+    item_p = OrderItem(order_id=test_order.id, menu_item_id=pizza.id, item_name=pizza.name, unit_price=15.0, quantity=2, line_total=30.0)
+    item_d = OrderItem(order_id=test_order.id, menu_item_id=soda.id, item_name=soda.name, unit_price=3.0, quantity=5, line_total=15.0)
+    db.session.add_all([item_p, item_d])
+    db.session.commit()
+
+    assert item_p.is_drink is False
+    assert item_d.is_drink is True
+    assert test_order.prep_item_count == 2
+    assert test_order.drink_count == 5
+
+
+
 

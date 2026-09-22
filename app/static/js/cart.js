@@ -395,7 +395,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const cateringCount = document.getElementById('cart-catering-count');
         if (cateringBanner && totals.estimates) {
             if (totals.estimates.is_catering) {
-                if (cateringCount) cateringCount.textContent = totals.item_count;
+                if (cateringCount) cateringCount.textContent = totals.prep_item_count || totals.item_count;
                 cateringBanner.classList.remove('d-none');
             } else {
                 cateringBanner.classList.add('d-none');

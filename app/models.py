@@ -47,6 +47,17 @@ class MenuItem(db.Model):
         name_lower = (self.name or '').lower()
         return bool('pizza' in cat_name or 'build your own' in cat_name or 'pizza' in name_lower or 'calzone' in name_lower or 'margherita' in name_lower)
 
+    @property
+    def is_drink(self):
+        cat_name = (self.category.name if self.category else '').lower()
+        cat_slug = (self.category.slug if self.category else '').lower()
+        name_lower = (self.name or '').lower()
+        return bool(
+            'beverage' in cat_name or 'drink' in cat_name or
+            'beverage' in cat_slug or 'drink' in cat_slug or
+            any(w in name_lower for w in ['soda', 'aranciata', 'water', 'drink', 'beverage', 'cola', 'tea', 'lemonade', 'pellegrino', 'san pellegrino', 'pepsi', 'coke', 'sprite'])
+        )
+
     def to_dict(self):
         options = self.get_options()
         if not self.is_pizza and 'toppings' in options:
@@ -61,6 +72,7 @@ class MenuItem(db.Model):
             'category_id': self.category_id,
             'category_name': self.category.name if self.category else '',
             'is_pizza': self.is_pizza,
+            'is_drink': self.is_drink,
             'options': options
         }
 
@@ -100,6 +112,16 @@ class Order(db.Model):
 
     items = db.relationship('OrderItem', backref='order', lazy=True, cascade="all, delete-orphan")
 
+    @property
+    def prep_item_count(self):
+        """Count of items requiring kitchen/oven preparation (excluding drinks)."""
+        return sum(item.quantity for item in self.items if not item.is_drink)
+
+    @property
+    def drink_count(self):
+        """Count of drink/beverage items."""
+        return sum(item.quantity for item in self.items if item.is_drink)
+
     def __repr__(self):
         return f'<Order {self.order_number}>'
 
@@ -120,6 +142,14 @@ class OrderItem(db.Model):
     line_total = db.Column(db.Float, nullable=False)
 
     menu_item = db.relationship('MenuItem', backref='order_items', lazy=True)
+
+    @property
+    def is_drink(self):
+        """Determine if this order line item is a drink/beverage."""
+        if self.menu_item and hasattr(self.menu_item, 'is_drink'):
+            return self.menu_item.is_drink
+        name_lower = (self.item_name or '').lower()
+        return bool(any(w in name_lower for w in ['soda', 'aranciata', 'water', 'drink', 'beverage', 'cola', 'tea', 'lemonade', 'pellegrino', 'san pellegrino', 'pepsi', 'coke', 'sprite']))
 
     def __repr__(self):
         return f'<OrderItem {self.item_name} x{self.quantity}>'

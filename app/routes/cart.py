@@ -73,9 +73,11 @@ def get_cart():
         menu_item = db.session.get(MenuItem, menu_item_id)
         if menu_item:
             cat_name = (menu_item.category.name if menu_item.category else '').lower()
+            cat_slug = (menu_item.category.slug if menu_item.category else '').lower()
             item_name = (item.get('name') or menu_item.name or '').lower()
             is_pizza = bool(menu_item.is_pizza or 'pizza' in cat_name or 'build your own' in cat_name or 'pizza' in item_name or 'calzone' in item_name or 'margherita' in item_name or item.get('crust_option'))
             item['is_pizza'] = is_pizza
+            item['is_drink'] = bool(menu_item.is_drink or 'beverage' in cat_name or 'drink' in cat_name or 'beverage' in cat_slug or any(w in item_name for w in ['soda', 'aranciata', 'water', 'drink', 'beverage', 'cola', 'tea', 'lemonade', 'pellegrino', 'san pellegrino', 'pepsi', 'coke', 'sprite']))
 
             # Non-pizza items (sodas, salads, fries, etc.) should never have toppings
             if not is_pizza and item.get('toppings'):
@@ -107,6 +109,7 @@ def get_cart():
         else:
             item_name = (item.get('name') or '').lower()
             item['is_pizza'] = bool('pizza' in item_name or 'margherita' in item_name or 'calzone' in item_name or item.get('crust_option'))
+            item['is_drink'] = bool(any(w in item_name for w in ['soda', 'aranciata', 'water', 'drink', 'beverage', 'cola', 'tea', 'lemonade', 'pellegrino', 'san pellegrino', 'pepsi', 'coke', 'sprite']))
             if not item['is_pizza'] and item.get('toppings'):
                 item['toppings'] = []
                 cart_modified = True
@@ -117,28 +120,51 @@ def get_cart():
 
     return cart
 
-def get_fulfillment_estimates(item_count):
+def is_cart_item_drink(cart_item):
+    """Determine if a cart item is a drink/beverage to exclude from kitchen prep thresholds."""
+    if 'is_drink' in cart_item:
+        return bool(cart_item['is_drink'])
+    
+    menu_item_id = cart_item.get('menu_item_id')
+    if menu_item_id:
+        menu_item = db.session.get(MenuItem, menu_item_id)
+        if menu_item and hasattr(menu_item, 'is_drink'):
+            return menu_item.is_drink
+            
+    name_lower = (cart_item.get('name') or '').lower()
+    return bool(any(w in name_lower for w in ['soda', 'aranciata', 'water', 'drink', 'beverage', 'cola', 'tea', 'lemonade', 'pellegrino', 'san pellegrino', 'pepsi', 'coke', 'sprite']))
+
+def get_fulfillment_estimates(item_count, prep_item_count=None):
     """Calculate realistic kitchen prep and delivery times based on order volume.
     
     Tasks T1-03 / T1-04: Prevents unrealistic turnaround estimates on large/catering orders.
+    Drinks do NOT count towards kitchen preparation volume or large/group order thresholds.
     """
-    if item_count >= 12:
+    threshold_count = prep_item_count if prep_item_count is not None else item_count
+
+    if threshold_count >= 12:
+        count_display = f"{prep_item_count} food items" if prep_item_count is not None and prep_item_count != item_count else f"{threshold_count} items"
         return {
             'tier': 'catering',
             'is_catering': True,
             'pickup_time': '60-90+ mins',
             'delivery_time': '75-100+ mins',
             'badge_text': 'High-Volume / Catering Order',
-            'notice': f'High-Volume Order Notice ({item_count} items): Large orders require extended oven time in our stone-deck oven. Our kitchen will prioritize your bake and phone ahead if scheduling adjustments are required.'
+            'item_count': item_count,
+            'prep_item_count': threshold_count,
+            'notice': f'High-Volume Order Notice ({count_display}): Large orders require extended oven time in our stone-deck oven. Our kitchen will prioritize your bake and phone ahead if scheduling adjustments are required.'
         }
-    elif item_count >= 6:
+    elif threshold_count >= 6:
+        count_display = f"{prep_item_count} food items" if prep_item_count is not None and prep_item_count != item_count else f"{threshold_count} items"
         return {
             'tier': 'medium',
             'is_catering': False,
             'pickup_time': '35-45 mins',
             'delivery_time': '50-65 mins',
             'badge_text': 'Group Order',
-            'notice': f'Group Order Notice ({item_count} items): Please allow 35-45 minutes for hand-tossed preparation during busy kitchen hours.'
+            'item_count': item_count,
+            'prep_item_count': threshold_count,
+            'notice': f'Group Order Notice ({count_display}): Please allow 35-45 minutes for hand-tossed preparation during busy kitchen hours.'
         }
     else:
         return {
@@ -147,6 +173,8 @@ def get_fulfillment_estimates(item_count):
             'pickup_time': '20-25 mins',
             'delivery_time': '40-50 mins',
             'badge_text': 'Standard Order',
+            'item_count': item_count,
+            'prep_item_count': threshold_count,
             'notice': None
         }
 
@@ -193,7 +221,10 @@ def calculate_totals(cart, order_type='pickup', promo_code=None):
         total_amount = 0.0
     else:
         total_amount = round(taxable_amount + tax_amount + delivery_fee, 2)
-    estimates = get_fulfillment_estimates(item_count)
+
+    prep_item_count = sum(item.get('quantity', 1) for item in cart if not is_cart_item_drink(item))
+    drink_count = item_count - prep_item_count
+    estimates = get_fulfillment_estimates(item_count, prep_item_count=prep_item_count)
     return {
         'subtotal': subtotal,
         'discount_amount': discount_amount,
@@ -205,6 +236,8 @@ def calculate_totals(cart, order_type='pickup', promo_code=None):
         'delivery_fee': delivery_fee,
         'total_amount': total_amount,
         'item_count': item_count,
+        'prep_item_count': prep_item_count,
+        'drink_count': drink_count,
         'estimates': estimates
     }
 
@@ -302,6 +335,7 @@ def add_to_cart():
             'size_option': size_name or None,
             'crust_option': crust_name or None,
             'is_pizza': is_pizza,
+            'is_drink': item.is_drink,
             'toppings': valid_toppings if is_pizza else [],
             'special_notes': special_notes or None,
             'unit_price': unit_price,

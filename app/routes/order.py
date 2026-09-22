@@ -185,7 +185,7 @@ def confirmation(order_number):
     order = Order.query.filter_by(order_number=order_number).first_or_404()
     remember_order_in_session(order.order_number)
     item_count = sum(item.quantity for item in order.items)
-    estimates = get_fulfillment_estimates(item_count)
+    estimates = get_fulfillment_estimates(item_count, prep_item_count=order.prep_item_count)
     return render_template('confirmation.html', order=order, estimates=estimates, item_count=item_count)
 
 def analyze_order_stepper(order):
@@ -431,7 +431,7 @@ def track_order(order_number):
     order = Order.query.filter_by(order_number=order_number).first_or_404()
     remember_order_in_session(order.order_number)
     item_count = sum(item.quantity for item in order.items)
-    estimates = get_fulfillment_estimates(item_count)
+    estimates = get_fulfillment_estimates(item_count, prep_item_count=order.prep_item_count)
     stepper_config = analyze_order_stepper(order)
 
     # Fetch all recent orders from session to render the multi-order switcher bar

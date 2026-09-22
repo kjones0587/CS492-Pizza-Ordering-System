@@ -197,7 +197,7 @@
                     <div class="d-flex align-items-center">
                         <i class="bi bi-exclamation-triangle-fill text-warning me-2 fs-6"></i>
                         <div>
-                            <strong class="d-block text-dark">High-Volume Order (<span id="cart-catering-count">{{ totals.item_count }}</span> items)</strong>
+                            <strong class="d-block text-dark">High-Volume Order (<span id="cart-catering-count">{{ totals.prep_item_count if totals.prep_item_count is defined else totals.item_count }}</span> food items)</strong>
                             <small class="text-dark">Extended oven prep required (60–90+ mins).</small>
                         </div>
                     </div>
