@@ -1,6 +1,6 @@
 from functools import wraps
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, current_app
-from app.models import db, Order, Manager, Category, MenuItem
+from app.models import db, Order, Manager, Category, MenuItem, PromoCode
 
 staff_bp = Blueprint('staff', __name__)
 
@@ -140,3 +140,86 @@ def toggle_item_status(item_id):
         })
 
     return redirect(url_for('staff.menu', category=request.form.get('current_category', 'all')))
+ 
+
+@staff_bp.route('/menu/<int:item_id>/update-price', methods=['POST'])
+@staff_login_required
+def update_item_price(item_id):
+    """Update base price for a menu item (PB-08: Nicholas Lattimore)"""
+    item = db.get_or_404(MenuItem, item_id)
+    try:
+        new_price = float(request.form.get('base_price', 0.0))
+        if new_price <= 0:
+            raise ValueError
+        item.base_price = round(new_price, 2)
+        db.session.commit()
+        flash(f"Updated base price for '{item.name}' to ${item.base_price:.2f}.", 'success')
+    except (ValueError, TypeError):
+        flash('Please enter a valid positive base price.', 'danger')
+
+    return redirect(url_for('staff.menu', category=request.form.get('current_category', 'all')))
+
+
+@staff_bp.route('/promos', methods=['GET'])
+@staff_login_required
+def promos():
+    """Staff Promo Code Management Dashboard (PB-09: Nicholas Lattimore)"""
+    all_promos = PromoCode.query.order_by(PromoCode.id.desc()).all()
+    active_count = PromoCode.query.filter_by(is_active=True).count()
+    inactive_count = PromoCode.query.filter_by(is_active=False).count()
+    return render_template(
+        'staff/promos.html',
+        promos=all_promos,
+        active_count=active_count,
+        inactive_count=inactive_count
+    )
+
+
+@staff_bp.route('/promos/create', methods=['POST'])
+@staff_login_required
+def create_promo():
+    """Create new promotional coupon code (PB-09: Nicholas Lattimore)"""
+    code = request.form.get('code', '').strip().upper()
+    description = request.form.get('description', '').strip()
+    discount_type = request.form.get('discount_type', 'percent')
+    try:
+        discount_value = float(request.form.get('discount_value', 0.0))
+        min_subtotal = float(request.form.get('min_subtotal', 0.0))
+    except (ValueError, TypeError):
+        flash('Invalid discount value or minimum subtotal.', 'danger')
+        return redirect(url_for('staff.promos'))
+
+    if not code:
+        flash('Promo code cannot be blank.', 'danger')
+        return redirect(url_for('staff.promos'))
+
+    existing = PromoCode.query.filter_by(code=code).first()
+    if existing:
+        flash(f"Promo code '{code}' already exists.", 'warning')
+        return redirect(url_for('staff.promos'))
+
+    promo = PromoCode(
+        code=code,
+        description=description or f"Discount code {code}",
+        discount_type=discount_type,
+        discount_value=discount_value,
+        min_subtotal=min_subtotal,
+        is_active=True
+    )
+    db.session.add(promo)
+    db.session.commit()
+    flash(f"Successfully created active promo code '{code}'.", 'success')
+    return redirect(url_for('staff.promos'))
+
+
+@staff_bp.route('/promos/<int:promo_id>/toggle', methods=['POST'])
+@staff_login_required
+def toggle_promo(promo_id):
+    """Toggle promo code active status (PB-09: Nicholas Lattimore)"""
+    promo = db.get_or_404(PromoCode, promo_id)
+    promo.is_active = not promo.is_active
+    db.session.commit()
+    status_str = 'Active' if promo.is_active else 'Inactive'
+    flash(f"Promo code '{promo.code}' is now {status_str}.", 'success' if promo.is_active else 'info')
+    return redirect(url_for('staff.promos'))
+
