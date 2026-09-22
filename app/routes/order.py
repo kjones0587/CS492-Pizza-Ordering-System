@@ -1,7 +1,7 @@
 import random
 import string
 from datetime import datetime, timezone
-from flask import Blueprint, render_template, request, session, redirect, url_for, flash
+from flask import Blueprint, render_template, request, session, redirect, url_for, flash, jsonify
 from app.models import db, Order, OrderItem
 from app.routes.cart import get_cart, calculate_totals, get_fulfillment_estimates
 
@@ -168,3 +168,49 @@ def confirmation(order_number):
     item_count = sum(item.quantity for item in order.items)
     estimates = get_fulfillment_estimates(item_count)
     return render_template('confirmation.html', order=order, estimates=estimates, item_count=item_count)
+
+@order_bp.route('/<order_number>/track')
+def track_order(order_number):
+    """Live visual order progress tracker (PB-05 / PB-10: Ayden Lotter)"""
+    order = Order.query.filter_by(order_number=order_number).first_or_404()
+    item_count = sum(item.quantity for item in order.items)
+    estimates = get_fulfillment_estimates(item_count)
+
+    # Step numbers: 1=Received, 2=Preparing, 3=Stone Oven / Ready, 4=Completed
+    status_map = {
+        'Received': 1,
+        'Preparing': 2,
+        'Ready': 3,
+        'Completed': 4,
+        'Cancelled': -1
+    }
+    current_step = status_map.get(order.status, 1)
+
+    return render_template(
+        'track.html',
+        order=order,
+        estimates=estimates,
+        item_count=item_count,
+        current_step=current_step
+    )
+
+@order_bp.route('/api/<order_number>/status')
+def order_status_api(order_number):
+    """API endpoint for live order tracking polling (PB-05 / PB-10: Ayden Lotter)"""
+    order = Order.query.filter_by(order_number=order_number).first_or_404()
+    status_map = {
+        'Received': 1,
+        'Preparing': 2,
+        'Ready': 3,
+        'Completed': 4,
+        'Cancelled': -1
+    }
+    return jsonify({
+        'success': True,
+        'order_number': order.order_number,
+        'status': order.status,
+        'current_step': status_map.get(order.status, 1),
+        'order_type': order.order_type,
+        'customer_name': order.customer_name
+    })
+
