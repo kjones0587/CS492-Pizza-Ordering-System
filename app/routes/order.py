@@ -193,7 +193,7 @@ def analyze_order_stepper(order):
         name_lower = (item.item_name or '').lower()
         
         # Check if pizza
-        if 'pizza' in cat_slug or 'pizza' in cat_name.lower() or 'pizza' in name_lower or item.crust_option:
+        if 'pizza' in cat_slug or 'pizza' in cat_name.lower() or 'pizza' in name_lower or 'margherita' in name_lower or 'calzone' in name_lower or item.crust_option:
             has_pizza = True
         elif 'beverage' in cat_slug or 'beverage' in cat_name.lower() or any(w in name_lower for w in ['soda', 'aranciata', 'water', 'drink', 'beverage', 'cola', 'tea', 'lemonade', 'pellegrino']):
             pass
@@ -202,6 +202,8 @@ def analyze_order_stepper(order):
 
     if has_pizza:
         order_category = 'pizza'
+        prep_desc = "Prepping artisan dough, salads & sides" if has_kitchen_prep else "Hand-tossing dough & fresh toppings"
+        prep_subtitle = "Our kitchen team is hand-tossing dough and preparing fresh sides." if has_kitchen_prep else "Our kitchen team is hand-tossing the dough and layering fresh toppings."
         steps = [
             {
                 'id': 1,
@@ -214,7 +216,7 @@ def analyze_order_stepper(order):
                 'id': 2,
                 'name': 'Preparing',
                 'title': '2. Preparing',
-                'desc': 'Hand-tossing dough & fresh toppings',
+                'desc': prep_desc,
                 'icon': 'bi-egg-fried'
             },
             {
@@ -241,7 +243,6 @@ def analyze_order_stepper(order):
             'Completed': 5,
             'Cancelled': -1
         }
-        prep_subtitle = "Our kitchen team is hand-tossing the dough and layering fresh toppings."
         bake_subtitle = "Your pizza is baking at 700° in our authentic stone wood-fired deck oven!"
         pickup_estimate = "20 - 25 mins"
 

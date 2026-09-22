@@ -409,3 +409,48 @@ def test_dynamic_stepper_variability_by_order_items(client):
     drink_api = client.get(f'/order/api/{drink_order.order_number}/status').get_json()
     assert drink_api['order_category'] == 'beverage_only'
     assert drink_api['total_steps'] == 2
+
+    # 3. Combo order (Pizza + Salad + Drink): Stone oven included, 4 steps, step 2 description updated
+    combo_order = Order(
+        order_number='ORD-20260922-COMBO',
+        customer_name='Combo Lover',
+        customer_email='combo@example.com',
+        customer_phone='(555) 456-7890',
+        order_type='pickup',
+        subtotal=34.98,
+        tax_amount=2.89,
+        delivery_fee=0.0,
+        total_amount=37.87,
+        status='Received',
+        created_at=datetime.now(timezone.utc)
+    )
+    db.session.add(combo_order)
+    db.session.flush()
+
+    combo_pizza = OrderItem(
+        order_id=combo_order.id,
+        item_name='Margherita D.O.P.',
+        size_option='Large (14")',
+        crust_option='Stone Deck Hand-Tossed',
+        unit_price=21.99,
+        quantity=1,
+        line_total=21.99
+    )
+    combo_salad = OrderItem(order_id=combo_order.id, item_name='Classic Caesar Salad', unit_price=8.99, quantity=1, line_total=8.99)
+    combo_drink = OrderItem(order_id=combo_order.id, item_name='Blood Orange Italian Aranciata', unit_price=3.99, quantity=1, line_total=3.99)
+    db.session.add_all([combo_pizza, combo_salad, combo_drink])
+    db.session.commit()
+
+    combo_res = client.get(f'/order/{combo_order.order_number}/track')
+    assert combo_res.status_code == 200
+    combo_html = combo_res.data.decode('utf-8')
+    assert '1. Received' in combo_html
+    assert '2. Preparing' in combo_html
+    assert '3. Stone Oven' in combo_html
+    assert '4. Ready for Pickup' in combo_html
+    assert 'Prepping artisan dough, salads &amp; sides' in combo_html or 'Prepping artisan dough, salads & sides' in combo_html
+
+    combo_api = client.get(f'/order/api/{combo_order.order_number}/status').get_json()
+    assert combo_api['order_category'] == 'pizza'
+    assert combo_api['total_steps'] == 4
+
