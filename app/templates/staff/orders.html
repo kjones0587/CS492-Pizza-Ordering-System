@@ -14,8 +14,14 @@
             <h1 class="fw-bold text-dark mt-1 mb-0">Incoming Orders Dashboard</h1>
             <p class="text-muted mb-0">Live monitoring of customer submitted orders and kitchen preparation status.</p>
         </div>
-        <div class="d-flex gap-2">
-            <a href="{{ url_for('staff.orders') }}" class="btn btn-outline-secondary btn-sm">
+        <div class="d-flex align-items-center gap-3">
+            <div class="form-check form-switch mb-0 d-flex align-items-center gap-2 bg-white px-3 py-2 rounded-3 border shadow-sm">
+                <input class="form-check-input ms-0 me-2" type="checkbox" role="switch" id="autoRefreshToggle" checked>
+                <label class="form-check-label small fw-semibold text-muted mb-0" for="autoRefreshToggle">
+                    <i class="bi bi-broadcast text-danger me-1"></i>Auto-Refresh (30s)
+                </label>
+            </div>
+            <a href="{{ url_for('staff.orders', status=current_filter) }}" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-arrow-clockwise me-1"></i> Refresh Live Orders
             </a>
         </div>
@@ -156,6 +162,11 @@
                                     <strong>Notes:</strong> {{ ord.special_instructions }}
                                 </div>
                                 {% endif %}
+                                {% if ord.staff_notes %}
+                                <div class="small text-primary bg-primary bg-opacity-10 p-1 rounded mt-1 border border-primary border-opacity-25">
+                                    <strong><i class="bi bi-clipboard-check me-1"></i>Kitchen:</strong> {{ ord.staff_notes }}
+                                </div>
+                                {% endif %}
                             </td>
                             <td>
                                 <span class="fw-bold fs-6 text-dark d-block">${{ "%.2f"|format(ord.total_amount) }}</span>
@@ -187,16 +198,49 @@
                                 {% endif %}
                             </td>
                             <td class="text-end pe-4">
-                                <form action="{{ url_for('staff.update_status', order_id=ord.id) }}" method="POST" class="d-inline-flex gap-1">
-                                    <input type="hidden" name="current_filter" value="{{ current_filter }}">
-                                    <select name="status" class="form-select form-select-sm" style="width: 120px;" onchange="this.form.submit()">
-                                        <option value="Received" {% if ord.status == 'Received' %}selected{% endif %}>Received</option>
-                                        <option value="Preparing" {% if ord.status == 'Preparing' %}selected{% endif %}>Preparing</option>
-                                        <option value="Ready" {% if ord.status == 'Ready' %}selected{% endif %}>Ready</option>
-                                        <option value="Completed" {% if ord.status == 'Completed' %}selected{% endif %}>Completed</option>
-                                        <option value="Cancelled" {% if ord.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
-                                    </select>
-                                </form>
+                                <div class="d-flex flex-column align-items-end gap-1">
+                                    <form action="{{ url_for('staff.update_status', order_id=ord.id) }}" method="POST" class="d-inline-flex gap-1">
+                                        <input type="hidden" name="current_filter" value="{{ current_filter }}">
+                                        <select name="status" class="form-select form-select-sm" style="width: 120px;" onchange="this.form.submit()">
+                                            <option value="Received" {% if ord.status == 'Received' %}selected{% endif %}>Received</option>
+                                            <option value="Preparing" {% if ord.status == 'Preparing' %}selected{% endif %}>Preparing</option>
+                                            <option value="Ready" {% if ord.status == 'Ready' %}selected{% endif %}>Ready</option>
+                                            <option value="Completed" {% if ord.status == 'Completed' %}selected{% endif %}>Completed</option>
+                                            <option value="Cancelled" {% if ord.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                                        </select>
+                                    </form>
+                                    <button type="button" class="btn btn-link btn-sm text-decoration-none text-muted p-0 small" data-bs-toggle="modal" data-bs-target="#notesModal{{ ord.id }}">
+                                        <i class="bi bi-pencil-square me-1"></i>{% if ord.staff_notes %}Edit Note{% else %}+ Add Note{% endif %}
+                                    </button>
+                                </div>
+
+                                <!-- Modal for Kitchen Staff Notes (PB-07: Michael Fabacher) -->
+                                <div class="modal fade text-start" id="notesModal{{ ord.id }}" tabindex="-1" aria-labelledby="notesModalLabel{{ ord.id }}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <form action="{{ url_for('staff.update_order_notes', order_id=ord.id) }}" method="POST">
+                                                <input type="hidden" name="current_filter" value="{{ current_filter }}">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="notesModalLabel{{ ord.id }}">
+                                                        <i class="bi bi-clipboard-plus me-1 text-primary"></i> Kitchen Notes for Order {{ ord.order_number }}
+                                                    </h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="mb-3">
+                                                        <label for="staffNotesInput{{ ord.id }}" class="form-label text-muted small fw-semibold">Internal Kitchen Notes (Prep station, cook notes, alerts):</label>
+                                                        <textarea class="form-control" id="staffNotesInput{{ ord.id }}" name="staff_notes" rows="3" placeholder="e.g., Gluten allergy prep station 2, extra crispy crust...">{{ ord.staff_notes or '' }}</textarea>
+                                                        <div class="form-text">Visible only to kitchen staff and managers.</div>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                                                    <button type="submit" class="btn btn-primary">Save Notes</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -207,4 +251,72 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    let pollingInterval = null;
+    let initialLatestId = {{ latest_order_id }};
+    const toggle = document.getElementById('autoRefreshToggle');
+
+    // Web Audio API Chime for New Incoming Order Notification
+    function playNewOrderSound() {
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            const audioCtx = new AudioContext();
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.15); // A5
+            gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.6);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.6);
+        } catch (e) {
+            console.warn('Audio chime playback disabled or not supported:', e);
+        }
+    }
+
+    function checkOrders() {
+        fetch('{{ url_for("staff.poll_orders") }}')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.latest_order_id > initialLatestId) {
+                    playNewOrderSound();
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                }
+            })
+            .catch(err => console.error('Polling error:', err));
+    }
+
+    function startPolling() {
+        if (!pollingInterval) {
+            pollingInterval = setInterval(checkOrders, 30000);
+        }
+    }
+
+    function stopPolling() {
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+        }
+    }
+
+    if (toggle) {
+        toggle.addEventListener('change', function () {
+            if (this.checked) {
+                startPolling();
+            } else {
+                stopPolling();
+            }
+        });
+        startPolling();
+    }
+});
+</script>
 {% endblock %}

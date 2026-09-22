@@ -63,6 +63,7 @@ def create_app(config_class=Config):
             "ALTER TABLE orders ADD COLUMN transaction_id VARCHAR(64)",
             "ALTER TABLE orders ADD COLUMN discount_amount FLOAT DEFAULT 0.0",
             "ALTER TABLE orders ADD COLUMN promo_code VARCHAR(30)",
+            "ALTER TABLE orders ADD COLUMN staff_notes VARCHAR(255)",
         ]
         with db.engine.connect() as conn:
             for stmt in migration_statements:
