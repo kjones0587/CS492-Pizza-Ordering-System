@@ -71,9 +71,11 @@
                         </div>
                         <div class="bg-white bg-opacity-10 rounded-3 px-3 py-2">
                             <small class="text-uppercase text-white-50 fw-bold d-block" style="font-size: 0.75rem;">Estimated Ready Time</small>
-                            <span class="fw-semibold {% if order.status == 'Completed' %}text-success{% else %}text-warning{% endif %}" id="trackerEstimatedTime">
+                            <span class="fw-semibold {% if order.status in ['Ready', 'Completed'] %}text-success{% else %}text-warning{% endif %}" id="trackerEstimatedTime">
                                 {% if order.status == 'Completed' %}
                                     <i class="bi bi-check-circle-fill me-1"></i>Fulfilled & Enjoyed
+                                {% elif order.status == 'Ready' %}
+                                    <i class="bi bi-bell-fill me-1 animate-pulse"></i>{% if order.order_type == 'delivery' %}Out for Delivery Now!{% else %}Ready for Pickup Now!{% endif %}
                                 {% elif order.order_type == 'delivery' %}
                                     {{ estimates.delivery_time if estimates else '40 - 50 mins' }}
                                 {% else %}
@@ -180,7 +182,7 @@
                         <div class="stepper-connector {% if current_step >= 4 %}connector-done{% endif %}" id="conn3"></div>
 
                         <!-- Step 4: Ready / Delivery / Completed -->
-                        <div class="stepper-step {% if current_step >= 4 %}step-done{% elif current_step == 3 %}step-active{% else %}step-pending{% endif %}" id="step4">
+                        <div class="stepper-step {% if current_step >= 5 %}step-done{% elif current_step == 4 %}step-active{% else %}step-pending{% endif %}" id="step4">
                             <div class="step-icon-wrap">
                                 <div class="step-icon">
                                     {% if order.status == 'Completed' %}

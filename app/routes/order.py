@@ -176,12 +176,12 @@ def track_order(order_number):
     item_count = sum(item.quantity for item in order.items)
     estimates = get_fulfillment_estimates(item_count)
 
-    # Step numbers: 1=Received, 2=Preparing, 3=Stone Oven / Ready, 4=Completed
+    # Step numbers: 1=Received, 2=Preparing, 3=Stone Oven Baking, 4=Ready for Pickup/Delivery, 5=Completed
     status_map = {
         'Received': 1,
         'Preparing': 2,
-        'Ready': 3,
-        'Completed': 4,
+        'Ready': 4,
+        'Completed': 5,
         'Cancelled': -1
     }
     current_step = status_map.get(order.status, 1)
@@ -201,8 +201,8 @@ def order_status_api(order_number):
     status_map = {
         'Received': 1,
         'Preparing': 2,
-        'Ready': 3,
-        'Completed': 4,
+        'Ready': 4,
+        'Completed': 5,
         'Cancelled': -1
     }
     return jsonify({

@@ -185,7 +185,17 @@ def test_customer_live_order_tracker(client):
     api_prep_res = client.get(f'/order/api/{order.order_number}/status')
     assert api_prep_res.get_json()['current_step'] == 2
 
-    # 4. Update status to Completed and verify customer tracker wording updates
+    # 4. Update status to Ready and verify step moves to 4 (Step 3 completed, Step 4 active)
+    order.status = 'Ready'
+    db.session.commit()
+    ready_res = client.get(f'/order/{order.order_number}/track')
+    assert ready_res.status_code == 200
+    ready_html = ready_res.data.decode('utf-8')
+    assert 'Out for Delivery Now!' in ready_html
+    api_ready_res = client.get(f'/order/api/{order.order_number}/status')
+    assert api_ready_res.get_json()['current_step'] == 4
+
+    # 5. Update status to Completed and verify customer tracker wording updates
     order.status = 'Completed'
     db.session.commit()
     complete_res = client.get(f'/order/{order.order_number}/track')
