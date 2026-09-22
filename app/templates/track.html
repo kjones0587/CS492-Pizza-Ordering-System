@@ -36,6 +36,7 @@
                            class="btn btn-sm d-inline-flex align-items-center gap-2 rounded-pill px-3 py-1.5 text-decoration-none transition-all {% if is_curr %}btn-danger text-white shadow-sm fw-bold border-0{% else %}btn-outline-secondary bg-light text-dark border{% endif %}"
                            title="Switch to order {{ ro.order_number }}">
                             <span class="font-monospace">#{{ ro.order_number[-13:] }}</span>
+                            <small class="{% if is_curr %}text-white text-opacity-75{% else %}text-muted{% endif %}" style="font-size: 0.72rem;">{{ ro.created_at.strftime('%I:%M:%S %p') }}</small>
                             <span class="badge {% if is_curr %}bg-white text-danger{% elif ro.status == 'Completed' %}bg-success text-white{% elif ro.status == 'Ready' %}bg-success text-white{% elif ro.status in ['Baking', 'In Oven'] %}bg-danger text-white{% else %}bg-warning text-dark{% endif %}" style="font-size: 0.7rem;">
                                 {{ ro.status }}
                             </span>
@@ -103,6 +104,12 @@
 
                     <!-- Key Metadata Pills -->
                     <div class="d-flex flex-wrap gap-3">
+                        <div class="bg-white bg-opacity-10 rounded-3 px-3 py-2">
+                            <small class="text-uppercase text-white-50 fw-bold d-block" style="font-size: 0.75rem;">Order Placed</small>
+                            <span class="fw-semibold text-white">
+                                <i class="bi bi-clock-history text-info me-1"></i> {{ order.created_at.strftime('%I:%M:%S %p') }}
+                            </span>
+                        </div>
                         <div class="bg-white bg-opacity-10 rounded-3 px-3 py-2">
                             <small class="text-uppercase text-white-50 fw-bold d-block" style="font-size: 0.75rem;">Fulfillment</small>
                             <span class="fw-semibold text-white">

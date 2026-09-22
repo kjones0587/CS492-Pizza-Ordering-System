@@ -15,7 +15,7 @@
                 <p class="text-muted">Enter your order number, or search by your name, phone number, or email to pull up your live tracker immediately.</p>
             </div>
 
-            {% if recent_orders and recent_orders|length > 1 and not matching_orders %}
+            {% if recent_orders and not matching_orders %}
             <!-- Recent Session Orders Card List (Multi-Order Switcher) -->
             <div class="card border-0 shadow-sm rounded-4 mb-4 bg-white p-3 p-md-4 border-start border-danger border-4">
                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
@@ -40,7 +40,7 @@
                                 {% endif %}
                             </div>
                             <small class="text-muted d-block mt-1">
-                                {{ ro.customer_name }} &bull; {{ ro.items|length }} item(s) &bull; ${{ "%.2f"|format(ro.total_amount) }} &bull; {{ ro.order_type|title }}
+                                <i class="bi bi-clock-history text-danger me-1"></i>Placed at <strong class="text-dark">{{ ro.created_at.strftime('%I:%M:%S %p') }}</strong> &bull; {{ ro.customer_name }} &bull; {{ ro.items|length }} item(s) &bull; ${{ "%.2f"|format(ro.total_amount) }} &bull; {{ ro.order_type|title }}
                             </small>
                         </div>
                         <span class="btn btn-pizza-primary btn-sm rounded-pill px-3 py-1.5 fw-semibold shadow-sm card-track-btn">
@@ -135,7 +135,7 @@
                         <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
                             <div>
                                 <span class="fw-bold fs-6 d-block card-order-num">{{ ord.order_number }}</span>
-                                <small class="text-muted"><i class="bi bi-calendar3 me-1"></i>{{ ord.created_at.strftime('%b %d, %Y at %I:%M %p') }}</small>
+                                <small class="text-muted"><i class="bi bi-clock-history text-danger me-1"></i>Placed on <strong class="text-dark">{{ ord.created_at.strftime('%b %d, %Y at %I:%M:%S %p') }}</strong></small>
                             </div>
                             <div>
                                 {% if ord.status == 'Received' %}

@@ -729,5 +729,48 @@ def test_drinks_do_not_count_towards_large_order_notice(client):
     assert test_order.drink_count == 5
 
 
+def test_order_placement_timestamp_display(client):
+    """Verify live tracker and order lookup screens display exact order placement time with seconds."""
+    fixed_time = datetime(2026, 9, 22, 14, 30, 45, tzinfo=timezone.utc)
+    order = Order(
+        order_number='ORD-20260922-TIME1',
+        customer_name='Timestamp Tester',
+        customer_email='time@example.com',
+        customer_phone='(555) 321-9999',
+        order_type='pickup',
+        subtotal=20.00,
+        tax_amount=1.65,
+        delivery_fee=0.0,
+        total_amount=21.65,
+        status='Received',
+        created_at=fixed_time,
+        payment_method='cash',
+        payment_status='Pending'
+    )
+    db.session.add(order)
+    db.session.commit()
 
+    # Format expected string: "02:30:45 PM"
+    expected_time = fixed_time.strftime('%I:%M:%S %p')
 
+    # 1. Tracker hero card metadata pill
+    track_res = client.get(f'/order/{order.order_number}/track')
+    assert track_res.status_code == 200
+    track_html = track_res.data.decode('utf-8')
+    assert 'Order Placed' in track_html
+    assert expected_time in track_html
+
+    # 2. Multi-order switcher button on tracker page
+    with client.session_transaction() as sess:
+        sess['recent_order_numbers'] = [order.order_number]
+    switcher_res = client.get(f'/order/{order.order_number}/track')
+    switcher_html = switcher_res.data.decode('utf-8')
+    assert expected_time in switcher_html
+
+    # 3. Order lookup page ("Your Recent Orders in this Browser")
+    lookup_res = client.get('/order/track?new=1')
+    assert lookup_res.status_code == 200
+    lookup_html = lookup_res.data.decode('utf-8')
+    assert 'Placed at' in lookup_html
+    assert expected_time in lookup_html
+    assert 'order-select-card' in lookup_html
