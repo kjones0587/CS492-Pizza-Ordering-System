@@ -91,7 +91,39 @@ def test_staff_live_polling_endpoint(client):
     assert 'latest_order_id' in data
     assert 'counts' in data
     assert 'Received' in data['counts']
+    assert 'Baking' in data['counts']
     assert 'timestamp' in data
+
+def test_staff_update_order_status_to_baking(client):
+    """Verify staff can update status to Baking and it reflects in dashboard."""
+    order = Order(
+        order_number='ORD-20260922-BAKE1',
+        customer_name='Bake Test Customer',
+        customer_email='bake@example.com',
+        customer_phone='(555) 321-4321',
+        order_type='pickup',
+        subtotal=18.00,
+        tax_amount=1.49,
+        delivery_fee=0.0,
+        total_amount=19.49,
+        status='Preparing',
+        created_at=datetime.now(timezone.utc),
+        payment_method='cash',
+        payment_status='Pending'
+    )
+    db.session.add(order)
+    db.session.commit()
+
+    update_res = client.post(f'/staff/orders/{order.id}/status', data={
+        'status': 'Baking'
+    }, follow_redirects=True)
+    assert update_res.status_code == 200
+    html = update_res.data.decode('utf-8')
+    assert f'Order {order.order_number} status updated to Baking.' in html
+    assert 'Stone Oven' in html
+
+    db_order = db.session.get(Order, order.id)
+    assert db_order.status == 'Baking'
 
 def test_staff_update_order_notes(client):
     """PB-07 (Michael Fabacher): Verify internal kitchen staff prep notes update."""
@@ -185,7 +217,18 @@ def test_customer_live_order_tracker(client):
     api_prep_res = client.get(f'/order/api/{order.order_number}/status')
     assert api_prep_res.get_json()['current_step'] == 2
 
-    # 4. Update status to Ready and verify step moves to 4 (Step 3 completed, Step 4 active)
+    # 4. Update status to Baking (Stone Oven) and verify step moves to 3 and timing shows baking in oven
+    order.status = 'Baking'
+    db.session.commit()
+    baking_res = client.get(f'/order/{order.order_number}/track')
+    assert baking_res.status_code == 200
+    baking_html = baking_res.data.decode('utf-8')
+    assert 'stone wood-fired deck oven' in baking_html
+    assert 'Baking in Oven' in baking_html
+    api_baking_res = client.get(f'/order/api/{order.order_number}/status')
+    assert api_baking_res.get_json()['current_step'] == 3
+
+    # 5. Update status to Ready and verify step moves to 4 (Step 3 completed, Step 4 active)
     order.status = 'Ready'
     db.session.commit()
     ready_res = client.get(f'/order/{order.order_number}/track')

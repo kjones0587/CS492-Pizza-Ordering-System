@@ -75,7 +75,7 @@ class Order(db.Model):
     delivery_fee = db.Column(db.Float, nullable=False, default=0.0)
     total_amount = db.Column(db.Float, nullable=False, default=0.0)
 
-    status = db.Column(db.String(30), nullable=False, default='Received')  # Received, Preparing, Ready, Completed, Cancelled
+    status = db.Column(db.String(30), nullable=False, default='Received')  # Received, Preparing, Baking, Ready, Completed, Cancelled
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
     # Sprint 2 (PB-06 & PB-09): Payment details and discounts

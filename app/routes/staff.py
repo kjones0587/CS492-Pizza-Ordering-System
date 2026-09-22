@@ -73,6 +73,7 @@ def orders():
         'all': Order.query.count(),
         'Received': Order.query.filter_by(status='Received').count(),
         'Preparing': Order.query.filter_by(status='Preparing').count(),
+        'Baking': Order.query.filter_by(status='Baking').count(),
         'Ready': Order.query.filter_by(status='Ready').count(),
         'Completed': Order.query.filter_by(status='Completed').count(),
     }
@@ -84,9 +85,12 @@ def orders():
 def update_status(order_id):
     order = db.get_or_404(Order, order_id)
     new_status = request.form.get('status')
-    valid_statuses = ['Received', 'Preparing', 'Ready', 'Completed', 'Cancelled']
+    valid_statuses = ['Received', 'Preparing', 'Baking', 'In Oven', 'Ready', 'Completed', 'Cancelled']
 
     if new_status in valid_statuses:
+        # Canonicalize 'In Oven' to 'Baking'
+        if new_status == 'In Oven':
+            new_status = 'Baking'
         order.status = new_status
         db.session.commit()
         flash(f'Order {order.order_number} status updated to {new_status}.', 'success')
@@ -116,6 +120,7 @@ def poll_orders():
         'all': Order.query.count(),
         'Received': Order.query.filter_by(status='Received').count(),
         'Preparing': Order.query.filter_by(status='Preparing').count(),
+        'Baking': Order.query.filter_by(status='Baking').count(),
         'Ready': Order.query.filter_by(status='Ready').count(),
         'Completed': Order.query.filter_by(status='Completed').count(),
     }

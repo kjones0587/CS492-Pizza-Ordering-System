@@ -59,7 +59,7 @@
     </div>
 
     <!-- Status Filters & Metric Counters -->
-    <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-5 g-3 mb-4">
+    <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-6 g-3 mb-4">
         <div class="col">
             <a href="{{ url_for('staff.orders', status='all') }}" class="card text-decoration-none border-0 shadow-sm rounded-3 text-center p-3 h-100 {% if current_filter == 'all' %}bg-dark text-white{% else %}bg-white text-dark border-bottom border-4 border-dark{% endif %}">
                 <div class="text-uppercase fw-bold small text-nowrap mb-1 opacity-75">All Orders</div>
@@ -76,6 +76,12 @@
             <a href="{{ url_for('staff.orders', status='Preparing') }}" class="card text-decoration-none border-0 shadow-sm rounded-3 text-center p-3 h-100 {% if current_filter == 'Preparing' %}bg-warning text-dark{% else %}bg-white text-dark border-bottom border-4 border-warning{% endif %}">
                 <div class="text-uppercase fw-bold small text-nowrap mb-1 opacity-75">Preparing</div>
                 <div class="fs-2 fw-bold text-warning {% if current_filter == 'Preparing' %}text-dark{% endif %}">{{ counts.Preparing }}</div>
+            </a>
+        </div>
+        <div class="col">
+            <a href="{{ url_for('staff.orders', status='Baking') }}" class="card text-decoration-none border-0 shadow-sm rounded-3 text-center p-3 h-100 {% if current_filter == 'Baking' %}bg-danger text-white{% else %}bg-white text-dark border-bottom border-4 border-danger{% endif %}">
+                <div class="text-uppercase fw-bold small text-nowrap mb-1 opacity-75">Stone Oven</div>
+                <div class="fs-2 fw-bold text-danger {% if current_filter == 'Baking' %}text-white{% endif %}">{{ counts.Baking }}</div>
             </a>
         </div>
         <div class="col">
@@ -191,7 +197,9 @@
                                 {% if ord.status == 'Received' %}
                                     <span class="badge bg-primary px-2 py-1"><i class="bi bi-clock me-1"></i>Received</span>
                                 {% elif ord.status == 'Preparing' %}
-                                    <span class="badge bg-warning text-dark px-2 py-1"><i class="bi bi-fire me-1"></i>Preparing</span>
+                                    <span class="badge bg-warning text-dark px-2 py-1"><i class="bi bi-egg-fried me-1"></i>Preparing</span>
+                                {% elif ord.status in ['Baking', 'In Oven'] %}
+                                    <span class="badge bg-danger text-white px-2 py-1"><i class="bi bi-fire me-1"></i>Stone Oven</span>
                                 {% elif ord.status == 'Ready' %}
                                     <span class="badge bg-info text-white px-2 py-1"><i class="bi bi-check2-circle me-1"></i>Ready</span>
                                 {% elif ord.status == 'Completed' %}
@@ -204,9 +212,10 @@
                                 <div class="d-flex flex-column align-items-end gap-1">
                                     <form action="{{ url_for('staff.update_status', order_id=ord.id) }}" method="POST" class="d-inline-flex gap-1">
                                         <input type="hidden" name="current_filter" value="{{ current_filter }}">
-                                        <select name="status" class="form-select form-select-sm" style="width: 120px;" onchange="this.form.submit()">
+                                        <select name="status" class="form-select form-select-sm" style="width: 135px;" onchange="this.form.submit()">
                                             <option value="Received" {% if ord.status == 'Received' %}selected{% endif %}>Received</option>
                                             <option value="Preparing" {% if ord.status == 'Preparing' %}selected{% endif %}>Preparing</option>
+                                            <option value="Baking" {% if ord.status in ['Baking', 'In Oven'] %}selected{% endif %}>Baking (Oven)</option>
                                             <option value="Ready" {% if ord.status == 'Ready' %}selected{% endif %}>Ready</option>
                                             <option value="Completed" {% if ord.status == 'Completed' %}selected{% endif %}>Completed</option>
                                             <option value="Cancelled" {% if ord.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>

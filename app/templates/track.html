@@ -38,6 +38,8 @@
                             We've received your order and the kitchen has it queued up!
                         {% elif order.status == 'Preparing' %}
                             Our kitchen team is hand-tossing the dough and layering fresh toppings.
+                        {% elif order.status in ['Baking', 'In Oven'] %}
+                            Your pizza is baking at 700° in our authentic stone wood-fired deck oven!
                         {% elif order.status == 'Ready' %}
                             {% if order.order_type == 'delivery' %}
                                 Your order is hot, packaged, and out for delivery!
@@ -76,6 +78,8 @@
                                     <i class="bi bi-check-circle-fill me-1"></i>Fulfilled & Enjoyed
                                 {% elif order.status == 'Ready' %}
                                     <i class="bi bi-bell-fill me-1 animate-pulse"></i>{% if order.order_type == 'delivery' %}Out for Delivery Now!{% else %}Ready for Pickup Now!{% endif %}
+                                {% elif order.status in ['Baking', 'In Oven'] %}
+                                    <i class="bi bi-fire me-1 text-danger animate-pulse"></i>{% if order.order_type == 'delivery' %}15 - 20 mins (Baking in Oven){% else %}6 - 10 mins (Baking in Oven){% endif %}
                                 {% elif order.order_type == 'delivery' %}
                                     {{ estimates.delivery_time if estimates else '40 - 50 mins' }}
                                 {% else %}

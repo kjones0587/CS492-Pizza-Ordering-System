@@ -180,6 +180,8 @@ def track_order(order_number):
     status_map = {
         'Received': 1,
         'Preparing': 2,
+        'Baking': 3,
+        'In Oven': 3,
         'Ready': 4,
         'Completed': 5,
         'Cancelled': -1
@@ -201,6 +203,8 @@ def order_status_api(order_number):
     status_map = {
         'Received': 1,
         'Preparing': 2,
+        'Baking': 3,
+        'In Oven': 3,
         'Ready': 4,
         'Completed': 5,
         'Cancelled': -1
