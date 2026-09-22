@@ -26,12 +26,12 @@
                         <small class="text-muted">Select an order to view its live progress:</small>
                     </div>
                 </div>
-                <div class="d-flex flex-column gap-2">
+                <div class="d-flex flex-column gap-3">
                     {% for ro in recent_orders %}
-                    <div class="d-flex align-items-center justify-content-between p-3 bg-light rounded-3 border flex-wrap gap-2 hover-shadow transition-all">
+                    <a href="{{ url_for('order.track_order', order_number=ro.order_number) }}" class="order-select-card d-flex align-items-center justify-content-between p-3 rounded-3 border flex-wrap gap-2 text-decoration-none">
                         <div>
                             <div class="d-flex align-items-center gap-2">
-                                <span class="fw-bold text-dark font-monospace fs-6">#{{ ro.order_number }}</span>
+                                <span class="fw-bold font-monospace fs-6 card-order-num">#{{ ro.order_number }}</span>
                                 <span class="badge {% if ro.status == 'Completed' %}bg-success{% elif ro.status == 'Ready' %}bg-success{% elif ro.status in ['Baking', 'In Oven'] %}bg-danger{% else %}bg-warning text-dark{% endif %}">
                                     {{ ro.status }}
                                 </span>
@@ -43,16 +43,16 @@
                                 {{ ro.customer_name }} &bull; {{ ro.items|length }} item(s) &bull; ${{ "%.2f"|format(ro.total_amount) }} &bull; {{ ro.order_type|title }}
                             </small>
                         </div>
-                        <a href="{{ url_for('order.track_order', order_number=ro.order_number) }}" class="btn btn-pizza-primary btn-sm rounded-pill px-3 py-1.5 fw-semibold">
+                        <span class="btn btn-pizza-primary btn-sm rounded-pill px-3 py-1.5 fw-semibold shadow-sm card-track-btn">
                             Track Order &rarr;
-                        </a>
-                    </div>
+                        </span>
+                    </a>
                     {% endfor %}
                 </div>
             </div>
             {% elif active_order_number and not matching_orders %}
             <!-- Recent Session Order Banner -->
-            <div class="card border-0 shadow-sm rounded-4 mb-4 bg-primary bg-opacity-10 border-start border-primary border-4 p-3">
+            <a href="{{ url_for('order.track_order', order_number=active_order_number) }}" class="order-select-card d-block card border-0 shadow-sm rounded-4 mb-4 bg-primary bg-opacity-10 border-start border-primary border-4 p-3 text-decoration-none">
                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                     <div class="d-flex align-items-center gap-3">
                         <div class="bg-primary text-white rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
@@ -63,11 +63,11 @@
                             <div class="fw-bold text-dark fs-6">{{ active_order_number }}</div>
                         </div>
                     </div>
-                    <a href="{{ url_for('order.track_order', order_number=active_order_number) }}" class="btn btn-primary btn-sm rounded-pill px-3 py-2 fw-semibold">
+                    <span class="btn btn-primary btn-sm rounded-pill px-3 py-2 fw-semibold card-track-btn">
                         View Live Tracker &rarr;
-                    </a>
+                    </span>
                 </div>
-            </div>
+            </a>
             {% endif %}
 
             <!-- Order Lookup Search Card -->
@@ -131,10 +131,10 @@
 
                 <div class="d-flex flex-column gap-3">
                     {% for ord in matching_orders %}
-                    <div class="border rounded-3 p-3 hover-shadow transition-all bg-light">
+                    <a href="{{ url_for('order.track_order', order_number=ord.order_number) }}" class="order-select-card d-block border rounded-3 p-3 text-decoration-none transition-all mb-2">
                         <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
                             <div>
-                                <span class="fw-bold text-danger fs-6 d-block">{{ ord.order_number }}</span>
+                                <span class="fw-bold fs-6 d-block card-order-num">{{ ord.order_number }}</span>
                                 <small class="text-muted"><i class="bi bi-calendar3 me-1"></i>{{ ord.created_at.strftime('%b %d, %Y at %I:%M %p') }}</small>
                             </div>
                             <div>
@@ -173,11 +173,11 @@
                         </div>
 
                         <div class="text-end">
-                            <a href="{{ url_for('order.track_order', order_number=ord.order_number) }}" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-semibold">
+                            <span class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-semibold card-track-btn">
                                 <i class="bi bi-geo-alt-fill me-1"></i> Track This Order &rarr;
-                            </a>
+                            </span>
                         </div>
-                    </div>
+                    </a>
                     {% endfor %}
                 </div>
             </div>
@@ -193,4 +193,37 @@
         </div>
     </div>
 </div>
+
+<style>
+.order-select-card {
+    background-color: #f8fafc;
+    border: 1.5px solid #e2e8f0 !important;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    transition: all 0.22s ease-in-out;
+}
+.order-select-card .card-order-num {
+    color: #1e293b;
+    transition: color 0.22s ease-in-out;
+}
+.order-select-card .card-track-btn {
+    transition: all 0.22s ease-in-out;
+}
+.order-select-card:hover {
+    background-color: #fff7ed !important; /* warm light peach/cream highlight */
+    border-color: #ea580c !important;     /* warm energetic pizza orange-red border */
+    box-shadow: 0 6px 18px rgba(234, 88, 12, 0.16) !important;
+    transform: translateY(-2px);
+}
+.order-select-card:hover .card-order-num {
+    color: #ea580c !important;
+}
+.order-select-card:hover .card-track-btn {
+    background-color: #c2410c !important;
+    border-color: #c2410c !important;
+    color: #ffffff !important;
+    transform: scale(1.04);
+    box-shadow: 0 4px 10px rgba(194, 65, 12, 0.25);
+}
+</style>
 {% endblock %}

@@ -62,8 +62,8 @@
                             <span class="badge bg-success bg-opacity-75 text-white px-2 py-1 small" id="livePollingIndicator">
                                 <i class="bi bi-arrow-repeat me-1"></i>Live Polling
                             </span>
-                            <a href="{{ url_for('order.track_lookup', new='1') }}" class="badge bg-light bg-opacity-20 text-white text-decoration-none px-2 py-1 small" title="Switch or find another order">
-                                <i class="bi bi-search me-1"></i>Switch / Find
+                            <a href="{{ url_for('order.track_lookup', new='1') }}" class="switch-find-btn text-decoration-none" title="Switch or find another order">
+                                <i class="bi bi-search me-1 text-danger"></i>Switch / Find
                             </a>
                         </div>
                     </div>
@@ -334,6 +334,34 @@
 
 <!-- Progress Stepper Custom Styling -->
 <style>
+.switch-find-btn {
+    display: inline-flex;
+    align-items: center;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 0.35rem 0.85rem;
+    border-radius: 50rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    text-shadow: none;
+    transition: all 0.2s ease-in-out;
+}
+.switch-find-btn:hover {
+    background-color: #fee2e2 !important;
+    color: #dc3545 !important;
+    border-color: #ef4444 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.35);
+}
+.switch-find-btn i {
+    transition: transform 0.2s ease;
+}
+.switch-find-btn:hover i {
+    transform: scale(1.15);
+}
+
 .tracker-stepper {
     display: flex;
     align-items: flex-start;
