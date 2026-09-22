@@ -185,6 +185,23 @@ def test_customer_live_order_tracker(client):
     api_prep_res = client.get(f'/order/api/{order.order_number}/status')
     assert api_prep_res.get_json()['current_step'] == 2
 
-    # 4. Invalid order returns 404
+    # 4. Update status to Completed and verify customer tracker wording updates
+    order.status = 'Completed'
+    db.session.commit()
+    complete_res = client.get(f'/order/{order.order_number}/track')
+    assert complete_res.status_code == 200
+    complete_html = complete_res.data.decode('utf-8')
+    assert '4. Delivered & Enjoyed!' in complete_html
+    assert 'Order Complete' in complete_html
+    assert 'Fulfilled & Enjoyed' in complete_html
+
+    # 5. Verify staff navigation is suppressed on tracker page even if manager session is active
+    with client.session_transaction() as sess:
+        sess['staff_user_id'] = 1
+        sess['staff_username'] = 'manager'
+    suppressed_res = client.get(f'/order/{order.order_number}/track')
+    assert 'Staff Orders' not in suppressed_res.data.decode('utf-8')
+
+    # 6. Invalid order returns 404
     invalid_res = client.get('/order/ORD-NONEXISTENT/track')
     assert invalid_res.status_code == 404

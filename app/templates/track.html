@@ -45,7 +45,11 @@
                                 Your order is fresh out of the stone oven and ready for pickup!
                             {% endif %}
                         {% elif order.status == 'Completed' %}
-                            This order is complete. We hope you enjoy every bite!
+                            {% if order.order_type == 'delivery' %}
+                                This order is complete and delivered. We hope you enjoy every bite!
+                            {% else %}
+                                This order has been picked up. Thank you for visiting Bella Napoli and enjoy your meal!
+                            {% endif %}
                         {% elif order.status == 'Cancelled' %}
                             This order has been cancelled. Please contact our support team.
                         {% else %}
@@ -67,8 +71,10 @@
                         </div>
                         <div class="bg-white bg-opacity-10 rounded-3 px-3 py-2">
                             <small class="text-uppercase text-white-50 fw-bold d-block" style="font-size: 0.75rem;">Estimated Ready Time</small>
-                            <span class="fw-semibold text-warning" id="trackerEstimatedTime">
-                                {% if order.order_type == 'delivery' %}
+                            <span class="fw-semibold {% if order.status == 'Completed' %}text-success{% else %}text-warning{% endif %}" id="trackerEstimatedTime">
+                                {% if order.status == 'Completed' %}
+                                    <i class="bi bi-check-circle-fill me-1"></i>Fulfilled & Enjoyed
+                                {% elif order.order_type == 'delivery' %}
                                     {{ estimates.delivery_time if estimates else '40 - 50 mins' }}
                                 {% else %}
                                     {{ estimates.pickup_time if estimates else '20 - 25 mins' }}
@@ -92,7 +98,30 @@
 
                 <!-- Progress Stepper (PB-05 / PB-10: Ayden Lotter) -->
                 <div class="card-body p-4 p-md-5 bg-white">
-                    <h5 class="fw-bold text-dark mb-4"><i class="bi bi-activity text-danger me-2"></i>Preparation Progress</h5>
+                    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                        <h5 class="fw-bold text-dark mb-0"><i class="bi bi-activity text-danger me-2"></i>Preparation Progress</h5>
+                        {% if order.status == 'Completed' %}
+                        <span class="badge bg-success px-3 py-2 fs-6">
+                            <i class="bi bi-check2-all me-1"></i>Order Fulfilled
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    {% if order.status == 'Completed' %}
+                    <div class="alert alert-success border-success bg-success bg-opacity-10 rounded-3 d-flex align-items-center mb-4 p-3 shadow-sm">
+                        <i class="bi bi-patch-check-fill text-success fs-2 me-3 flex-shrink-0"></i>
+                        <div>
+                            <strong class="d-block text-success fs-6">Order Complete — Enjoy Your Meal!</strong>
+                            <small class="text-dark">
+                                {% if order.order_type == 'delivery' %}
+                                    Your pizza has been delivered to your door! Thanks for choosing Bella Napoli—we hope you enjoy every bite.
+                                {% else %}
+                                    Your order has been picked up from our front counter. Thanks for visiting Bella Napoli and enjoy your hot pizza!
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                    {% endif %}
 
                     {% if order.status == 'Cancelled' %}
                     <div class="alert alert-danger rounded-3 d-flex align-items-center mb-0">
@@ -150,11 +179,13 @@
 
                         <div class="stepper-connector {% if current_step >= 4 %}connector-done{% endif %}" id="conn3"></div>
 
-                        <!-- Step 4: Ready / Delivery -->
+                        <!-- Step 4: Ready / Delivery / Completed -->
                         <div class="stepper-step {% if current_step >= 4 %}step-done{% elif current_step == 3 %}step-active{% else %}step-pending{% endif %}" id="step4">
                             <div class="step-icon-wrap">
                                 <div class="step-icon">
-                                    {% if order.order_type == 'delivery' %}
+                                    {% if order.status == 'Completed' %}
+                                        <i class="bi bi-check2-all"></i>
+                                    {% elif order.order_type == 'delivery' %}
                                         <i class="bi bi-bicycle"></i>
                                     {% else %}
                                         <i class="bi bi-bag-check"></i>
@@ -163,10 +194,26 @@
                             </div>
                             <div class="step-content">
                                 <h6 class="step-title">
-                                    {% if order.order_type == 'delivery' %}4. Out for Delivery{% else %}4. Ready for Pickup{% endif %}
+                                    {% if order.status == 'Completed' %}
+                                        {% if order.order_type == 'delivery' %}4. Delivered & Enjoyed!{% else %}4. Picked Up & Enjoyed!{% endif %}
+                                    {% elif order.order_type == 'delivery' %}
+                                        4. Out for Delivery
+                                    {% else %}
+                                        4. Ready for Pickup
+                                    {% endif %}
                                 </h6>
                                 <p class="step-desc text-muted mb-0">
-                                    {% if order.order_type == 'delivery' %}Driver heading to your address{% else %}Waiting at the front pickup counter{% endif %}
+                                    {% if order.status == 'Completed' %}
+                                        {% if order.order_type == 'delivery' %}
+                                            Delivered! Thanks for ordering and enjoy your hot pizza!
+                                        {% else %}
+                                            Picked up! Thanks for visiting Bella Napoli and enjoy your meal!
+                                        {% endif %}
+                                    {% elif order.order_type == 'delivery' %}
+                                        Driver heading to your address
+                                    {% else %}
+                                        Waiting at the front pickup counter
+                                    {% endif %}
                                 </p>
                             </div>
                         </div>
