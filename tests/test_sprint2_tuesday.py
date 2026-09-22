@@ -258,3 +258,58 @@ def test_customer_live_order_tracker(client):
     # 6. Invalid order returns 404
     invalid_res = client.get('/order/ORD-NONEXISTENT/track')
     assert invalid_res.status_code == 404
+
+def test_customer_tracker_session_retention_and_lookup(client):
+    """Verify customer can navigate away and easily return to live tracker via session & lookup."""
+    order = Order(
+        order_number='ORD-20260922-RETN1',
+        customer_name='Return Customer',
+        customer_email='return@example.com',
+        customer_phone='(555) 777-8888',
+        order_type='pickup',
+        subtotal=15.00,
+        tax_amount=1.24,
+        delivery_fee=0.0,
+        total_amount=16.24,
+        status='Preparing',
+        created_at=datetime.now(timezone.utc),
+        payment_method='cash',
+        payment_status='Pending'
+    )
+    db.session.add(order)
+    db.session.commit()
+
+    # 1. Visit tracker directly -> sets active_order_number in session
+    track_res = client.get(f'/order/{order.order_number}/track')
+    assert track_res.status_code == 200
+
+    # 2. Navigate away to the menu page -> verify Track Order link is in navbar
+    menu_res = client.get('/menu/')
+    assert menu_res.status_code == 200
+    menu_html = menu_res.data.decode('utf-8')
+    assert 'Track Order' in menu_html
+    assert f'/order/{order.order_number}/track' in menu_html
+
+    # 3. Navigate to generic /order/track -> auto-redirects directly to active order tracker
+    redir_res = client.get('/order/track')
+    assert redir_res.status_code == 302
+    assert redir_res.headers['Location'] == f'/order/{order.order_number}/track'
+
+    # 4. Visit lookup page explicitly with ?new=1
+    lookup_res = client.get('/order/track?new=1')
+    assert lookup_res.status_code == 200
+    assert 'Track Your Order' in lookup_res.data.decode('utf-8')
+
+    # 5. POST to lookup page with valid order number
+    post_res = client.post('/order/track', data={
+        'order_number': f'#{order.order_number}'
+    })
+    assert post_res.status_code == 302
+    assert post_res.headers['Location'] == f'/order/{order.order_number}/track'
+
+    # 6. POST to lookup with invalid order number
+    bad_post = client.post('/order/track', data={
+        'order_number': 'ORD-INVALID-9999'
+    }, follow_redirects=True)
+    assert bad_post.status_code == 200
+    assert 'was not found' in bad_post.data.decode('utf-8')

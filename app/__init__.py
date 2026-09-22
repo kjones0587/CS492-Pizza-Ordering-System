@@ -44,10 +44,12 @@ def create_app(config_class=Config):
                 {'days': 'Sunday', 'time': '12:00 PM - 9:00 PM'}
             ]
         }
+        active_order_num = session.get('active_order_number')
         return {
             'cart_count': cart_total_qty,
             'restaurant': restaurant_info,
-            'csrf_token': generate_csrf_token
+            'csrf_token': generate_csrf_token,
+            'active_order_number': active_order_num
         }
 
     # Automatically create tables and seed on startup

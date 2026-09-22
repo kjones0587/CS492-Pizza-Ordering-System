@@ -158,6 +158,7 @@ def submit_order():
     session['cart'] = []
     session.pop('promo_code', None)
     session.pop('checkout_form_data', None)
+    session['active_order_number'] = order_num
     session.modified = True
 
     return redirect(url_for('order.confirmation', order_number=order_num))
@@ -165,14 +166,44 @@ def submit_order():
 @order_bp.route('/confirmation/<order_number>')
 def confirmation(order_number):
     order = Order.query.filter_by(order_number=order_number).first_or_404()
+    session['active_order_number'] = order.order_number
+    session.modified = True
     item_count = sum(item.quantity for item in order.items)
     estimates = get_fulfillment_estimates(item_count)
     return render_template('confirmation.html', order=order, estimates=estimates, item_count=item_count)
+
+@order_bp.route('/track', methods=['GET', 'POST'])
+def track_lookup():
+    """Order tracker lookup page & session redirection (Sprint 2 Usability)"""
+    if request.method == 'POST':
+        raw_order_num = request.form.get('order_number', '').strip()
+        clean_num = raw_order_num.lstrip('#').strip()
+        if clean_num:
+            order = Order.query.filter(Order.order_number.ilike(clean_num)).first()
+            if order:
+                session['active_order_number'] = order.order_number
+                session.modified = True
+                return redirect(url_for('order.track_order', order_number=order.order_number))
+            else:
+                flash(f'Order "{raw_order_num}" was not found. Please check the number on your receipt and try again.', 'danger')
+        else:
+            flash('Please enter your order number.', 'warning')
+
+    # If customer already has an active order in session and didn't ask for a fresh lookup
+    active_order_num = session.get('active_order_number')
+    if active_order_num and request.args.get('new') != '1':
+        order = Order.query.filter_by(order_number=active_order_num).first()
+        if order:
+            return redirect(url_for('order.track_order', order_number=active_order_num))
+
+    return render_template('track_lookup.html', active_order_number=active_order_num)
 
 @order_bp.route('/<order_number>/track')
 def track_order(order_number):
     """Live visual order progress tracker (PB-05 / PB-10: Ayden Lotter)"""
     order = Order.query.filter_by(order_number=order_number).first_or_404()
+    session['active_order_number'] = order.order_number
+    session.modified = True
     item_count = sum(item.quantity for item in order.items)
     estimates = get_fulfillment_estimates(item_count)
 
