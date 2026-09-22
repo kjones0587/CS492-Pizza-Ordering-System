@@ -1,4 +1,5 @@
 from functools import wraps
+from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, current_app
 from app.models import db, Order, Manager, Category, MenuItem, PromoCode
 
@@ -66,6 +67,8 @@ def orders():
         query = query.filter_by(status=status_filter)
 
     orders_list = query.all()
+    latest_order = Order.query.order_by(Order.id.desc()).first()
+    latest_order_id = latest_order.id if latest_order else 0
     counts = {
         'all': Order.query.count(),
         'Received': Order.query.filter_by(status='Received').count(),
@@ -74,7 +77,7 @@ def orders():
         'Completed': Order.query.filter_by(status='Completed').count(),
     }
 
-    return render_template('staff/orders.html', orders=orders_list, counts=counts, current_filter=status_filter)
+    return render_template('staff/orders.html', orders=orders_list, counts=counts, current_filter=status_filter, latest_order_id=latest_order_id)
 
 @staff_bp.route('/orders/<int:order_id>/status', methods=['POST'])
 @staff_login_required
@@ -91,6 +94,38 @@ def update_status(order_id):
         flash('Invalid order status.', 'danger')
 
     return redirect(url_for('staff.orders', status=request.form.get('current_filter', 'all')))
+
+@staff_bp.route('/orders/<int:order_id>/notes', methods=['POST'])
+@staff_login_required
+def update_order_notes(order_id):
+    """Update internal kitchen prep notes for an order (PB-07: Michael Fabacher)"""
+    order = db.get_or_404(Order, order_id)
+    notes = request.form.get('staff_notes', '').strip()
+    order.staff_notes = notes if notes else None
+    db.session.commit()
+    flash(f"Internal kitchen note updated for order {order.order_number}.", 'success')
+    return redirect(url_for('staff.orders', status=request.form.get('current_filter', 'all')))
+
+@staff_bp.route('/api/orders/poll', methods=['GET'])
+@staff_login_required
+def poll_orders():
+    """Live auto-refresh polling API for kitchen orders (PB-05 / PB-07: Michael Fabacher)"""
+    latest_order = Order.query.order_by(Order.id.desc()).first()
+    latest_id = latest_order.id if latest_order else 0
+    counts = {
+        'all': Order.query.count(),
+        'Received': Order.query.filter_by(status='Received').count(),
+        'Preparing': Order.query.filter_by(status='Preparing').count(),
+        'Ready': Order.query.filter_by(status='Ready').count(),
+        'Completed': Order.query.filter_by(status='Completed').count(),
+    }
+    return jsonify({
+        'success': True,
+        'latest_order_id': latest_id,
+        'latest_order_number': latest_order.order_number if latest_order else None,
+        'counts': counts,
+        'timestamp': datetime.now(timezone.utc).isoformat()
+    })
 
 @staff_bp.route('/menu')
 @staff_login_required

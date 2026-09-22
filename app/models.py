@@ -86,6 +86,7 @@ class Order(db.Model):
     transaction_id = db.Column(db.String(64), nullable=True)  # Gateway reference e.g. TXN-20260916-XXXX
     discount_amount = db.Column(db.Float, nullable=False, default=0.0)
     promo_code = db.Column(db.String(30), nullable=True)
+    staff_notes = db.Column(db.String(255), nullable=True)  # Internal kitchen/prep notes (PB-07: Michael Fabacher)
 
     items = db.relationship('OrderItem', backref='order', lazy=True, cascade="all, delete-orphan")
 
