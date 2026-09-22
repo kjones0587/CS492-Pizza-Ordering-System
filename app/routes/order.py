@@ -1,5 +1,6 @@
 import random
 import string
+import re
 from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, session, redirect, url_for, flash, jsonify
 from app.models import db, Order, OrderItem
@@ -172,31 +173,226 @@ def confirmation(order_number):
     estimates = get_fulfillment_estimates(item_count)
     return render_template('confirmation.html', order=order, estimates=estimates, item_count=item_count)
 
+def analyze_order_stepper(order):
+    """
+    Determine dynamic stepper configuration based on items ordered:
+    - 'pizza': 4 steps (Received -> Preparing -> Stone Oven -> Ready)
+    - 'kitchen_prep': 3 steps (Received -> Kitchen Prep -> Ready) (e.g. Salads, Apps, Desserts)
+    - 'beverage_only': 2 steps (Received -> Ready) (e.g. Sodas, Italian sodas, drinks only)
+    """
+    has_pizza = False
+    has_kitchen_prep = False
+
+    for item in order.items:
+        cat_slug = ''
+        cat_name = ''
+        if item.menu_item and item.menu_item.category:
+            cat_slug = item.menu_item.category.slug or ''
+            cat_name = item.menu_item.category.name or ''
+        
+        name_lower = (item.item_name or '').lower()
+        
+        # Check if pizza
+        if 'pizza' in cat_slug or 'pizza' in cat_name.lower() or 'pizza' in name_lower or item.crust_option:
+            has_pizza = True
+        elif 'beverage' in cat_slug or 'beverage' in cat_name.lower() or any(w in name_lower for w in ['soda', 'aranciata', 'water', 'drink', 'beverage', 'cola', 'tea', 'lemonade', 'pellegrino']):
+            pass
+        else:
+            has_kitchen_prep = True
+
+    if has_pizza:
+        order_category = 'pizza'
+        steps = [
+            {
+                'id': 1,
+                'name': 'Received',
+                'title': '1. Received',
+                'desc': 'Order confirmed & queued in kitchen',
+                'icon': 'bi-receipt'
+            },
+            {
+                'id': 2,
+                'name': 'Preparing',
+                'title': '2. Preparing',
+                'desc': 'Hand-tossing dough & fresh toppings',
+                'icon': 'bi-egg-fried'
+            },
+            {
+                'id': 3,
+                'name': 'Stone Oven',
+                'title': '3. Stone Oven',
+                'desc': 'Baking at 700° in deck oven',
+                'icon': 'bi-fire'
+            },
+            {
+                'id': 4,
+                'name': 'Ready',
+                'title': '4. Out for Delivery' if order.order_type == 'delivery' else '4. Ready for Pickup',
+                'desc': 'Packaged & out for delivery' if order.order_type == 'delivery' else 'Waiting at front pickup counter',
+                'icon': 'bi-bicycle' if order.order_type == 'delivery' else 'bi-bag-check'
+            }
+        ]
+        status_map = {
+            'Received': 1,
+            'Preparing': 2,
+            'Baking': 3,
+            'In Oven': 3,
+            'Ready': 4,
+            'Completed': 5,
+            'Cancelled': -1
+        }
+        prep_subtitle = "Our kitchen team is hand-tossing the dough and layering fresh toppings."
+        bake_subtitle = "Your pizza is baking at 700° in our authentic stone wood-fired deck oven!"
+        pickup_estimate = "20 - 25 mins"
+
+    elif has_kitchen_prep:
+        order_category = 'kitchen_prep'
+        # 3-step stepper (Stone oven omitted!)
+        steps = [
+            {
+                'id': 1,
+                'name': 'Received',
+                'title': '1. Received',
+                'desc': 'Order confirmed & queued in kitchen',
+                'icon': 'bi-receipt'
+            },
+            {
+                'id': 2,
+                'name': 'Preparing',
+                'title': '2. Kitchen Prep',
+                'desc': 'Tossing fresh greens & packaging sides',
+                'icon': 'bi-egg-fried'
+            },
+            {
+                'id': 3,
+                'name': 'Ready',
+                'title': '3. Out for Delivery' if order.order_type == 'delivery' else '3. Ready for Pickup',
+                'desc': 'Packaged & out for delivery' if order.order_type == 'delivery' else 'Chilled & waiting at pickup counter',
+                'icon': 'bi-bicycle' if order.order_type == 'delivery' else 'bi-bag-check'
+            }
+        ]
+        status_map = {
+            'Received': 1,
+            'Preparing': 2,
+            'Baking': 2,
+            'In Oven': 2,
+            'Ready': 3,
+            'Completed': 4,
+            'Cancelled': -1
+        }
+        prep_subtitle = "Our culinary team is tossing fresh greens, assembling sides, and packaging your order."
+        bake_subtitle = "Our culinary team is putting the final touches on your dishes."
+        pickup_estimate = "10 - 15 mins (Kitchen Prep)"
+
+    else:
+        # Beverage only
+        order_category = 'beverage_only'
+        # 2-step stepper (No dough prep, no stone oven!)
+        steps = [
+            {
+                'id': 1,
+                'name': 'Received',
+                'title': '1. Received',
+                'desc': 'Order confirmed & sent to beverage bar',
+                'icon': 'bi-receipt'
+            },
+            {
+                'id': 2,
+                'name': 'Ready',
+                'title': '2. Out for Delivery' if order.order_type == 'delivery' else '2. Ready for Pickup',
+                'desc': 'Chilled & out for delivery' if order.order_type == 'delivery' else 'Chilled & ready at pickup counter',
+                'icon': 'bi-bicycle' if order.order_type == 'delivery' else 'bi-cup-straw'
+            }
+        ]
+        status_map = {
+            'Received': 1,
+            'Preparing': 1,
+            'Baking': 1,
+            'In Oven': 1,
+            'Ready': 2,
+            'Completed': 3,
+            'Cancelled': -1
+        }
+        prep_subtitle = "Our team is chilling and packaging your beverages."
+        bake_subtitle = "Your cold drinks are ready at the counter!"
+        pickup_estimate = "3 - 5 mins (Express Pickup)"
+
+    current_step = status_map.get(order.status, 1)
+
+    return {
+        'order_category': order_category,
+        'steps': steps,
+        'total_steps': len(steps),
+        'status_map': status_map,
+        'current_step': current_step,
+        'prep_subtitle': prep_subtitle,
+        'bake_subtitle': bake_subtitle,
+        'pickup_estimate': pickup_estimate
+    }
+
 @order_bp.route('/track', methods=['GET', 'POST'])
 def track_lookup():
-    """Order tracker lookup page & session redirection (Sprint 2 Usability)"""
+    """Order tracker lookup page & session redirection (supports order #, name, phone, email)"""
+    matching_orders = []
+    search_query = ''
+
     if request.method == 'POST':
-        raw_order_num = request.form.get('order_number', '').strip()
-        clean_num = raw_order_num.lstrip('#').strip()
-        if clean_num:
-            order = Order.query.filter(Order.order_number.ilike(clean_num)).first()
-            if order:
-                session['active_order_number'] = order.order_number
+        search_query = request.form.get('search_query', request.form.get('order_number', '')).strip()
+        clean_query = search_query.lstrip('#').strip()
+        digits_only = re.sub(r'\D', '', clean_query)
+
+        if clean_query:
+            # Query by 1) Order Number, 2) Customer Name (case-insensitive), 3) Customer Email, 4) Customer Phone
+            filter_conditions = [
+                Order.order_number.ilike(f'%{clean_query}%'),
+                Order.customer_name.ilike(f'%{clean_query}%'),
+                Order.customer_email.ilike(f'%{clean_query}%'),
+                Order.customer_phone.ilike(f'%{clean_query}%')
+            ]
+            if len(digits_only) >= 4:
+                # Strip punctuation from phone in SQL for unformatted matching
+                clean_phone_sql = db.func.replace(
+                    db.func.replace(
+                        db.func.replace(
+                            db.func.replace(Order.customer_phone, '(', ''),
+                            ')', ''
+                        ),
+                        '-', ''
+                    ),
+                    ' ', ''
+                )
+                filter_conditions.append(clean_phone_sql.ilike(f'%{digits_only}%'))
+                if len(digits_only) == 10:
+                    formatted_phone = f"({digits_only[:3]}) {digits_only[3:6]}-{digits_only[6:]}"
+                    filter_conditions.append(Order.customer_phone.ilike(f'%{formatted_phone}%'))
+
+            matching_orders = Order.query.filter(db.or_(*filter_conditions)).order_by(Order.id.desc()).all()
+
+            if len(matching_orders) == 1:
+                matched_order = matching_orders[0]
+                session['active_order_number'] = matched_order.order_number
                 session.modified = True
-                return redirect(url_for('order.track_order', order_number=order.order_number))
+                return redirect(url_for('order.track_order', order_number=matched_order.order_number))
+            elif len(matching_orders) > 1:
+                flash(f'Found {len(matching_orders)} orders matching "{search_query}". Select your order below to open the live tracker.', 'info')
             else:
-                flash(f'Order "{raw_order_num}" was not found. Please check the number on your receipt and try again.', 'danger')
+                flash(f'No orders found matching "{search_query}". Please verify your order number, name, phone, or email.', 'danger')
         else:
-            flash('Please enter your order number.', 'warning')
+            flash('Please enter an order number, name, phone, or email to find your order.', 'warning')
 
     # If customer already has an active order in session and didn't ask for a fresh lookup
     active_order_num = session.get('active_order_number')
-    if active_order_num and request.args.get('new') != '1':
+    if not matching_orders and active_order_num and request.args.get('new') != '1' and request.method == 'GET':
         order = Order.query.filter_by(order_number=active_order_num).first()
         if order:
             return redirect(url_for('order.track_order', order_number=active_order_num))
 
-    return render_template('track_lookup.html', active_order_number=active_order_num)
+    return render_template(
+        'track_lookup.html',
+        active_order_number=active_order_num,
+        matching_orders=matching_orders,
+        search_query=search_query
+    )
 
 @order_bp.route('/<order_number>/track')
 def track_order(order_number):
@@ -206,45 +402,29 @@ def track_order(order_number):
     session.modified = True
     item_count = sum(item.quantity for item in order.items)
     estimates = get_fulfillment_estimates(item_count)
-
-    # Step numbers: 1=Received, 2=Preparing, 3=Stone Oven Baking, 4=Ready for Pickup/Delivery, 5=Completed
-    status_map = {
-        'Received': 1,
-        'Preparing': 2,
-        'Baking': 3,
-        'In Oven': 3,
-        'Ready': 4,
-        'Completed': 5,
-        'Cancelled': -1
-    }
-    current_step = status_map.get(order.status, 1)
+    stepper_config = analyze_order_stepper(order)
 
     return render_template(
         'track.html',
         order=order,
         estimates=estimates,
         item_count=item_count,
-        current_step=current_step
+        stepper_config=stepper_config,
+        current_step=stepper_config['current_step']
     )
 
 @order_bp.route('/api/<order_number>/status')
 def order_status_api(order_number):
     """API endpoint for live order tracking polling (PB-05 / PB-10: Ayden Lotter)"""
     order = Order.query.filter_by(order_number=order_number).first_or_404()
-    status_map = {
-        'Received': 1,
-        'Preparing': 2,
-        'Baking': 3,
-        'In Oven': 3,
-        'Ready': 4,
-        'Completed': 5,
-        'Cancelled': -1
-    }
+    stepper_config = analyze_order_stepper(order)
     return jsonify({
         'success': True,
         'order_number': order.order_number,
         'status': order.status,
-        'current_step': status_map.get(order.status, 1),
+        'order_category': stepper_config['order_category'],
+        'current_step': stepper_config['current_step'],
+        'total_steps': stepper_config['total_steps'],
         'order_type': order.order_type,
         'customer_name': order.customer_name
     })

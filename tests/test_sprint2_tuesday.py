@@ -302,14 +302,110 @@ def test_customer_tracker_session_retention_and_lookup(client):
 
     # 5. POST to lookup page with valid order number
     post_res = client.post('/order/track', data={
-        'order_number': f'#{order.order_number}'
+        'search_query': f'#{order.order_number}'
     })
     assert post_res.status_code == 302
     assert post_res.headers['Location'] == f'/order/{order.order_number}/track'
 
-    # 6. POST to lookup with invalid order number
+    # 6. POST to lookup with customer name (case-insensitive)
+    name_post = client.post('/order/track', data={
+        'search_query': 'return customer'
+    })
+    assert name_post.status_code == 302
+    assert name_post.headers['Location'] == f'/order/{order.order_number}/track'
+
+    # 7. POST to lookup with customer phone number
+    phone_post = client.post('/order/track', data={
+        'search_query': '5557778888'
+    })
+    assert phone_post.status_code == 302
+    assert phone_post.headers['Location'] == f'/order/{order.order_number}/track'
+
+    # 8. POST to lookup with customer email (case-insensitive)
+    email_post = client.post('/order/track', data={
+        'search_query': 'RETURN@EXAMPLE.COM'
+    })
+    assert email_post.status_code == 302
+    assert email_post.headers['Location'] == f'/order/{order.order_number}/track'
+
+    # 9. POST to lookup with invalid search query
     bad_post = client.post('/order/track', data={
-        'order_number': 'ORD-INVALID-9999'
+        'search_query': 'NONEXISTENT_USER_XYZ'
     }, follow_redirects=True)
     assert bad_post.status_code == 200
-    assert 'was not found' in bad_post.data.decode('utf-8')
+    assert 'No orders found' in bad_post.data.decode('utf-8')
+
+def test_dynamic_stepper_variability_by_order_items(client):
+    """Verify stepper dynamically adapts steps based on whether order has pizza, prepared food, or drinks only."""
+    # 1. Non-pizza prepared food order (Salad + Drink, as in user screenshot)
+    salad_order = Order(
+        order_number='ORD-20260922-SALAD',
+        customer_name='Salad Fan',
+        customer_email='salad@example.com',
+        customer_phone='(555) 234-5678',
+        order_type='pickup',
+        subtotal=12.98,
+        tax_amount=1.07,
+        delivery_fee=0.0,
+        total_amount=14.05,
+        status='Received',
+        created_at=datetime.now(timezone.utc)
+    )
+    db.session.add(salad_order)
+    db.session.flush()
+
+    item1 = OrderItem(order_id=salad_order.id, item_name='Classic Caesar Salad', unit_price=8.99, quantity=1, line_total=8.99)
+    item2 = OrderItem(order_id=salad_order.id, item_name='Blood Orange Italian Aranciata', unit_price=3.99, quantity=1, line_total=3.99)
+    db.session.add_all([item1, item2])
+    db.session.commit()
+
+    # Track salad order: verify 3 steps (Kitchen Prep), Stone Oven step omitted!
+    salad_res = client.get(f'/order/{salad_order.order_number}/track')
+    assert salad_res.status_code == 200
+    salad_html = salad_res.data.decode('utf-8')
+    assert '1. Received' in salad_html
+    assert '2. Kitchen Prep' in salad_html
+    assert '3. Ready for Pickup' in salad_html
+    assert 'Stone Oven' not in salad_html
+    assert '10 - 15 mins (Kitchen Prep)' in salad_html
+
+    # Check API returns kitchen_prep and 3 total steps
+    salad_api = client.get(f'/order/api/{salad_order.order_number}/status').get_json()
+    assert salad_api['order_category'] == 'kitchen_prep'
+    assert salad_api['total_steps'] == 3
+
+    # 2. Beverage-only order (e.g. 1x Soda)
+    drink_order = Order(
+        order_number='ORD-20260922-DRINK',
+        customer_name='Drink Fan',
+        customer_email='drink@example.com',
+        customer_phone='(555) 345-6789',
+        order_type='pickup',
+        subtotal=3.99,
+        tax_amount=0.33,
+        delivery_fee=0.0,
+        total_amount=4.32,
+        status='Received',
+        created_at=datetime.now(timezone.utc)
+    )
+    db.session.add(drink_order)
+    db.session.flush()
+
+    drink_item = OrderItem(order_id=drink_order.id, item_name='Blood Orange Italian Aranciata', unit_price=3.99, quantity=1, line_total=3.99)
+    db.session.add(drink_item)
+    db.session.commit()
+
+    # Track drink order: verify 2 steps (Received -> Ready), no preparing, no stone oven
+    drink_res = client.get(f'/order/{drink_order.order_number}/track')
+    assert drink_res.status_code == 200
+    drink_html = drink_res.data.decode('utf-8')
+    assert '1. Received' in drink_html
+    assert '2. Ready for Pickup' in drink_html
+    assert 'Stone Oven' not in drink_html
+    assert 'Preparing' not in drink_html
+    assert '3 - 5 mins (Express Pickup)' in drink_html
+
+    # Check API returns beverage_only and 2 total steps
+    drink_api = client.get(f'/order/api/{drink_order.order_number}/status').get_json()
+    assert drink_api['order_category'] == 'beverage_only'
+    assert drink_api['total_steps'] == 2

@@ -1,21 +1,21 @@
 {% extends "base.html" %}
 
-{% block title %}Track Your Order - Bella Napoli Pizzeria{% endblock %}
+{% block title %}Find & Track Your Order - Bella Napoli Pizzeria{% endblock %}
 
 {% block content %}
 <div class="container py-5">
     <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-6">
+        <div class="col-md-9 col-lg-7">
             <!-- Header Badge -->
             <div class="text-center mb-4">
                 <span class="badge bg-danger bg-opacity-10 text-danger px-3 py-2 rounded-pill fw-bold mb-2">
-                    <i class="bi bi-radar me-1 animate-pulse"></i> Real-Time Pizza Tracker
+                    <i class="bi bi-radar me-1 animate-pulse"></i> Real-Time Order Tracker
                 </span>
-                <h1 class="fw-bold text-dark mb-2">Track Your Order</h1>
-                <p class="text-muted">Enter your order number from your confirmation receipt to follow your pizza from dough to delivery in real time.</p>
+                <h1 class="fw-bold text-dark mb-2">Find & Track Your Order</h1>
+                <p class="text-muted">Enter your order number, or search by your name, phone number, or email to pull up your live tracker immediately.</p>
             </div>
 
-            {% if active_order_number %}
+            {% if active_order_number and not matching_orders %}
             <!-- Recent Session Order Banner -->
             <div class="card border-0 shadow-sm rounded-4 mb-4 bg-primary bg-opacity-10 border-start border-primary border-4 p-3">
                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
@@ -24,7 +24,7 @@
                             <i class="bi bi-bell-fill fs-5"></i>
                         </div>
                         <div>
-                            <div class="small text-muted fw-bold text-uppercase">Active Order Found</div>
+                            <div class="small text-muted fw-bold text-uppercase">Active Order in Browser Session</div>
                             <div class="fw-bold text-dark fs-6">{{ active_order_number }}</div>
                         </div>
                     </div>
@@ -35,29 +35,42 @@
             </div>
             {% endif %}
 
-            <!-- Order Lookup Card -->
-            <div class="card border-0 shadow-sm rounded-4 p-4 p-md-5 bg-white">
+            <!-- Order Lookup Search Card -->
+            <div class="card border-0 shadow-sm rounded-4 p-4 p-md-5 bg-white mb-4">
                 <form action="{{ url_for('order.track_lookup') }}" method="POST">
-                    <div class="mb-4">
-                        <label for="order_number" class="form-label fw-bold text-dark">Order Number</label>
+                    <div class="mb-3">
+                        <label for="search_query" class="form-label fw-bold text-dark">Lookup Your Order</label>
                         <div class="input-group input-group-lg">
                             <span class="input-group-text bg-light border-end-0 text-muted">
-                                <i class="bi bi-receipt"></i>
+                                <i class="bi bi-search"></i>
                             </span>
                             <input 
                                 type="text" 
                                 class="form-control bg-light border-start-0 ps-0" 
-                                id="order_number" 
-                                name="order_number" 
-                                placeholder="e.g. ORD-20260922-A1B2 or #ORD-..." 
-                                value="{{ active_order_number or '' }}"
+                                id="search_query" 
+                                name="search_query" 
+                                placeholder="Enter Order #, Name, Phone, or Email..." 
+                                value="{{ search_query or (active_order_number if not matching_orders else '') }}"
                                 required
                                 autofocus
                             >
                         </div>
-                        <div class="form-text text-muted mt-2">
-                            <i class="bi bi-info-circle me-1"></i> You can include or omit the <code>#</code> symbol.
-                        </div>
+                    </div>
+
+                    <!-- 4 Supported Search Methods Tags -->
+                    <div class="d-flex flex-wrap gap-2 mb-4">
+                        <span class="badge bg-light text-dark border fw-normal py-1 px-2 small">
+                            <i class="bi bi-receipt text-danger me-1"></i> Order # (e.g. #ORD-...)
+                        </span>
+                        <span class="badge bg-light text-dark border fw-normal py-1 px-2 small">
+                            <i class="bi bi-person text-primary me-1"></i> Customer Name (case-insensitive)
+                        </span>
+                        <span class="badge bg-light text-dark border fw-normal py-1 px-2 small">
+                            <i class="bi bi-telephone text-success me-1"></i> Phone Number
+                        </span>
+                        <span class="badge bg-light text-dark border fw-normal py-1 px-2 small">
+                            <i class="bi bi-envelope text-info me-1"></i> Email Address
+                        </span>
                     </div>
 
                     <button type="submit" class="btn btn-pizza-primary w-100 py-3 fw-bold rounded-pill shadow-sm fs-6">
@@ -66,18 +79,80 @@
                 </form>
 
                 <div class="mt-4 pt-3 border-top text-center">
-                    <p class="small text-muted mb-2">Haven't placed an order yet?</p>
+                    <p class="small text-muted mb-2">Looking for something delicious?</p>
                     <a href="{{ url_for('menu.index') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
                         <i class="bi bi-book-half me-1"></i> Explore Our Menu
                     </a>
                 </div>
             </div>
 
+            {% if matching_orders %}
+            <!-- Multiple Orders Matching Results List -->
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+                <h5 class="fw-bold text-dark mb-3 d-flex align-items-center justify-content-between">
+                    <span><i class="bi bi-list-check text-danger me-2"></i>Matching Orders ({{ matching_orders|length }})</span>
+                    <small class="text-muted fs-6 fw-normal">Select an order to track</small>
+                </h5>
+
+                <div class="d-flex flex-column gap-3">
+                    {% for ord in matching_orders %}
+                    <div class="border rounded-3 p-3 hover-shadow transition-all bg-light">
+                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                            <div>
+                                <span class="fw-bold text-danger fs-6 d-block">{{ ord.order_number }}</span>
+                                <small class="text-muted"><i class="bi bi-calendar3 me-1"></i>{{ ord.created_at.strftime('%b %d, %Y at %I:%M %p') }}</small>
+                            </div>
+                            <div>
+                                {% if ord.status == 'Received' %}
+                                    <span class="badge bg-primary px-2 py-1"><i class="bi bi-clock me-1"></i>Received</span>
+                                {% elif ord.status == 'Preparing' %}
+                                    <span class="badge bg-warning text-dark px-2 py-1"><i class="bi bi-egg-fried me-1"></i>Preparing</span>
+                                {% elif ord.status in ['Baking', 'In Oven'] %}
+                                    <span class="badge bg-danger text-white px-2 py-1"><i class="bi bi-fire me-1"></i>Stone Oven</span>
+                                {% elif ord.status == 'Ready' %}
+                                    <span class="badge bg-info text-white px-2 py-1"><i class="bi bi-check2-circle me-1"></i>Ready</span>
+                                {% elif ord.status == 'Completed' %}
+                                    <span class="badge bg-success px-2 py-1"><i class="bi bi-bag-check me-1"></i>Completed</span>
+                                {% else %}
+                                    <span class="badge bg-secondary px-2 py-1">{{ ord.status }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="small text-dark mb-2">
+                            <i class="bi bi-person me-1 text-muted"></i><strong>{{ ord.customer_name }}</strong>
+                            <span class="text-muted mx-1">&bull;</span>
+                            <i class="bi bi-telephone me-1 text-muted"></i>{{ ord.customer_phone }}
+                            <span class="text-muted mx-1">&bull;</span>
+                            <span class="badge bg-secondary bg-opacity-10 text-dark border">
+                                {% if ord.order_type == 'delivery' %}<i class="bi bi-bicycle me-1"></i>Delivery{% else %}<i class="bi bi-shop me-1"></i>Pickup{% endif %}
+                            </span>
+                        </div>
+
+                        <div class="small text-muted mb-3">
+                            <strong>Items:</strong>
+                            {% for itm in ord.items %}
+                                {{ itm.quantity }}x {{ itm.item_name }}{% if not loop.last %}, {% endif %}
+                            {% endfor %}
+                            <span class="fw-bold text-dark ms-1">(${{"%.2f"|format(ord.total_amount)}})</span>
+                        </div>
+
+                        <div class="text-end">
+                            <a href="{{ url_for('order.track_order', order_number=ord.order_number) }}" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-semibold">
+                                <i class="bi bi-geo-alt-fill me-1"></i> Track This Order &rarr;
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Help Box -->
-            <div class="card border-0 bg-light rounded-4 p-3 mt-4 text-center">
+            <div class="card border-0 bg-light rounded-4 p-3 text-center">
                 <div class="small text-muted">
                     <i class="bi bi-question-circle me-1 text-primary"></i>
-                    Need help finding your order? Call our front desk at <strong>{{ restaurant.phone }}</strong>.
+                    Having trouble locating your order? Contact our front counter team at <strong>{{ restaurant.phone }}</strong>.
                 </div>
             </div>
         </div>

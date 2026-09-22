@@ -35,16 +35,22 @@
                     <h1 class="fw-bold mb-2">Hello, {{ order.customer_name }}!</h1>
                     <p class="text-white-50 lead mb-4" id="trackerHeaderSubtitle">
                         {% if order.status == 'Received' %}
-                            We've received your order and the kitchen has it queued up!
+                            {% if stepper_config and stepper_config.order_category == 'beverage_only' %}
+                                We've received your drink order and our beverage station has it queued up!
+                            {% elif stepper_config and stepper_config.order_category == 'kitchen_prep' %}
+                                We've received your order and our culinary prep kitchen has it queued up!
+                            {% else %}
+                                We've received your order and the kitchen has it queued up!
+                            {% endif %}
                         {% elif order.status == 'Preparing' %}
-                            Our kitchen team is hand-tossing the dough and layering fresh toppings.
+                            {% if stepper_config %}{{ stepper_config.prep_subtitle }}{% else %}Our kitchen team is hand-tossing the dough and layering fresh toppings.{% endif %}
                         {% elif order.status in ['Baking', 'In Oven'] %}
-                            Your pizza is baking at 700° in our authentic stone wood-fired deck oven!
+                            {% if stepper_config %}{{ stepper_config.bake_subtitle }}{% else %}Your pizza is baking at 700° in our authentic stone wood-fired deck oven!{% endif %}
                         {% elif order.status == 'Ready' %}
                             {% if order.order_type == 'delivery' %}
                                 Your order is hot, packaged, and out for delivery!
                             {% else %}
-                                Your order is fresh out of the stone oven and ready for pickup!
+                                Your order is fresh and ready for pickup!
                             {% endif %}
                         {% elif order.status == 'Completed' %}
                             {% if order.order_type == 'delivery' %}
@@ -78,10 +84,12 @@
                                     <i class="bi bi-check-circle-fill me-1"></i>Fulfilled & Enjoyed
                                 {% elif order.status == 'Ready' %}
                                     <i class="bi bi-bell-fill me-1 animate-pulse"></i>{% if order.order_type == 'delivery' %}Out for Delivery Now!{% else %}Ready for Pickup Now!{% endif %}
-                                {% elif order.status in ['Baking', 'In Oven'] %}
+                                {% elif order.status in ['Baking', 'In Oven'] and stepper_config and stepper_config.order_category == 'pizza' %}
                                     <i class="bi bi-fire me-1 text-danger animate-pulse"></i>{% if order.order_type == 'delivery' %}15 - 20 mins (Baking in Oven){% else %}6 - 10 mins (Baking in Oven){% endif %}
                                 {% elif order.order_type == 'delivery' %}
                                     {{ estimates.delivery_time if estimates else '40 - 50 mins' }}
+                                {% elif stepper_config %}
+                                    {{ stepper_config.pickup_estimate }}
                                 {% else %}
                                     {{ estimates.pickup_time if estimates else '20 - 25 mins' }}
                                 {% endif %}
@@ -138,91 +146,49 @@
                         </div>
                     </div>
                     {% else %}
-                    <!-- Responsive 4-Step Stepper -->
+                    <!-- Dynamic Responsive Stepper (Item-Specific Variability) -->
                     <div class="tracker-stepper mb-4">
-                        <!-- Step 1: Received -->
-                        <div class="stepper-step {% if current_step > 1 %}step-done{% elif current_step == 1 %}step-active{% else %}step-pending{% endif %}" id="step1">
-                            <div class="step-icon-wrap">
-                                <div class="step-icon">
-                                    <i class="bi bi-receipt"></i>
+                        {% if stepper_config and stepper_config.steps %}
+                            {% for step in stepper_config.steps %}
+                                {% set is_done = (current_step > step.id) or (step.id == stepper_config.total_steps and current_step >= stepper_config.total_steps + 1) %}
+                                {% set is_active = (current_step == step.id) %}
+                                <div class="stepper-step {% if is_done %}step-done{% elif is_active %}step-active{% else %}step-pending{% endif %}" id="step{{ step.id }}">
+                                    <div class="step-icon-wrap">
+                                        <div class="step-icon">
+                                            {% if step.id == stepper_config.total_steps and order.status == 'Completed' %}
+                                                <i class="bi bi-check2-all"></i>
+                                            {% else %}
+                                                <i class="bi {{ step.icon }}"></i>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="step-content">
+                                        <h6 class="step-title">
+                                            {% if step.id == stepper_config.total_steps and order.status == 'Completed' %}
+                                                {% if order.order_type == 'delivery' %}{{ step.id }}. Delivered & Enjoyed!{% else %}{{ step.id }}. Picked Up & Enjoyed!{% endif %}
+                                            {% else %}
+                                                {{ step.title }}
+                                            {% endif %}
+                                        </h6>
+                                        <p class="step-desc text-muted mb-0">
+                                            {% if step.id == stepper_config.total_steps and order.status == 'Completed' %}
+                                                {% if order.order_type == 'delivery' %}
+                                                    Delivered! Thanks for ordering and enjoy your meal!
+                                                {% else %}
+                                                    Picked up! Thanks for visiting Bella Napoli and enjoy your meal!
+                                                {% endif %}
+                                            {% else %}
+                                                {{ step.desc }}
+                                            {% endif %}
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="step-content">
-                                <h6 class="step-title">1. Received</h6>
-                                <p class="step-desc text-muted mb-0">Order confirmed & queued in kitchen</p>
-                            </div>
-                        </div>
 
-                        <div class="stepper-connector {% if current_step > 1 %}connector-done{% endif %}" id="conn1"></div>
-
-                        <!-- Step 2: Preparing -->
-                        <div class="stepper-step {% if current_step > 2 %}step-done{% elif current_step == 2 %}step-active{% else %}step-pending{% endif %}" id="step2">
-                            <div class="step-icon-wrap">
-                                <div class="step-icon">
-                                    <i class="bi bi-egg-fried"></i>
-                                </div>
-                            </div>
-                            <div class="step-content">
-                                <h6 class="step-title">2. Preparing</h6>
-                                <p class="step-desc text-muted mb-0">Hand-tossing dough & fresh toppings</p>
-                            </div>
-                        </div>
-
-                        <div class="stepper-connector {% if current_step > 2 %}connector-done{% endif %}" id="conn2"></div>
-
-                        <!-- Step 3: Stone Oven -->
-                        <div class="stepper-step {% if current_step > 3 %}step-done{% elif current_step == 3 %}step-active{% else %}step-pending{% endif %}" id="step3">
-                            <div class="step-icon-wrap">
-                                <div class="step-icon">
-                                    <i class="bi bi-fire"></i>
-                                </div>
-                            </div>
-                            <div class="step-content">
-                                <h6 class="step-title">3. Stone Oven</h6>
-                                <p class="step-desc text-muted mb-0">Baking at 700° in deck oven</p>
-                            </div>
-                        </div>
-
-                        <div class="stepper-connector {% if current_step >= 4 %}connector-done{% endif %}" id="conn3"></div>
-
-                        <!-- Step 4: Ready / Delivery / Completed -->
-                        <div class="stepper-step {% if current_step >= 5 %}step-done{% elif current_step == 4 %}step-active{% else %}step-pending{% endif %}" id="step4">
-                            <div class="step-icon-wrap">
-                                <div class="step-icon">
-                                    {% if order.status == 'Completed' %}
-                                        <i class="bi bi-check2-all"></i>
-                                    {% elif order.order_type == 'delivery' %}
-                                        <i class="bi bi-bicycle"></i>
-                                    {% else %}
-                                        <i class="bi bi-bag-check"></i>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="step-content">
-                                <h6 class="step-title">
-                                    {% if order.status == 'Completed' %}
-                                        {% if order.order_type == 'delivery' %}4. Delivered & Enjoyed!{% else %}4. Picked Up & Enjoyed!{% endif %}
-                                    {% elif order.order_type == 'delivery' %}
-                                        4. Out for Delivery
-                                    {% else %}
-                                        4. Ready for Pickup
-                                    {% endif %}
-                                </h6>
-                                <p class="step-desc text-muted mb-0">
-                                    {% if order.status == 'Completed' %}
-                                        {% if order.order_type == 'delivery' %}
-                                            Delivered! Thanks for ordering and enjoy your hot pizza!
-                                        {% else %}
-                                            Picked up! Thanks for visiting Bella Napoli and enjoy your meal!
-                                        {% endif %}
-                                    {% elif order.order_type == 'delivery' %}
-                                        Driver heading to your address
-                                    {% else %}
-                                        Waiting at the front pickup counter
-                                    {% endif %}
-                                </p>
-                            </div>
-                        </div>
+                                {% if not loop.last %}
+                                    <div class="stepper-connector {% if current_step > step.id %}connector-done{% endif %}" id="conn{{ step.id }}"></div>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
                     </div>
                     {% endif %}
                 </div>
