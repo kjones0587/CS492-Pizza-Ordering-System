@@ -13,6 +13,23 @@ def generate_order_number():
     suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
     return f"ORD-{date_str}-{suffix}"
 
+def remember_order_in_session(order_number):
+    """Keep track of recent orders placed or tracked in this browser session.
+    
+    Allows customers with multiple active orders to switch between them seamlessly.
+    """
+    if not order_number:
+        return
+    recent = session.get('recent_order_numbers', [])
+    if not isinstance(recent, list):
+        recent = []
+    if order_number in recent:
+        recent.remove(order_number)
+    recent.insert(0, order_number)
+    session['recent_order_numbers'] = recent[:5]
+    session['active_order_number'] = order_number
+    session.modified = True
+
 @order_bp.route('/submit', methods=['POST'])
 def submit_order():
     cart = get_cart()
@@ -159,16 +176,14 @@ def submit_order():
     session['cart'] = []
     session.pop('promo_code', None)
     session.pop('checkout_form_data', None)
-    session['active_order_number'] = order_num
-    session.modified = True
+    remember_order_in_session(order_num)
 
     return redirect(url_for('order.confirmation', order_number=order_num))
 
 @order_bp.route('/confirmation/<order_number>')
 def confirmation(order_number):
     order = Order.query.filter_by(order_number=order_number).first_or_404()
-    session['active_order_number'] = order.order_number
-    session.modified = True
+    remember_order_in_session(order.order_number)
     item_count = sum(item.quantity for item in order.items)
     estimates = get_fulfillment_estimates(item_count)
     return render_template('confirmation.html', order=order, estimates=estimates, item_count=item_count)
@@ -371,8 +386,7 @@ def track_lookup():
 
             if len(matching_orders) == 1:
                 matched_order = matching_orders[0]
-                session['active_order_number'] = matched_order.order_number
-                session.modified = True
+                remember_order_in_session(matched_order.order_number)
                 return redirect(url_for('order.track_order', order_number=matched_order.order_number))
             elif len(matching_orders) > 1:
                 flash(f'Found {len(matching_orders)} orders matching "{search_query}". Select your order below to open the live tracker.', 'info')
@@ -381,16 +395,32 @@ def track_lookup():
         else:
             flash('Please enter an order number, name, phone, or email to find your order.', 'warning')
 
-    # If customer already has an active order in session and didn't ask for a fresh lookup
+    recent_order_nums = session.get('recent_order_numbers', [])
+    if not isinstance(recent_order_nums, list):
+        recent_order_nums = []
     active_order_num = session.get('active_order_number')
+    if active_order_num and active_order_num not in recent_order_nums:
+        recent_order_nums = [active_order_num] + recent_order_nums
+
+    # If customer already has an active order in session and didn't ask for a fresh lookup
+    # Only auto-redirect if there is a single order in session. If multiple orders exist,
+    # show the recent orders list so they can easily pick their first or second order!
     if not matching_orders and active_order_num and request.args.get('new') != '1' and request.method == 'GET':
-        order = Order.query.filter_by(order_number=active_order_num).first()
-        if order:
-            return redirect(url_for('order.track_order', order_number=active_order_num))
+        if len(recent_order_nums) <= 1:
+            order = Order.query.filter_by(order_number=active_order_num).first()
+            if order:
+                return redirect(url_for('order.track_order', order_number=active_order_num))
+
+    # Fetch recent orders for display
+    recent_orders = []
+    if recent_order_nums:
+        orders_by_num = {o.order_number: o for o in Order.query.filter(Order.order_number.in_(recent_order_nums)).all()}
+        recent_orders = [orders_by_num[num] for num in recent_order_nums if num in orders_by_num]
 
     return render_template(
         'track_lookup.html',
         active_order_number=active_order_num,
+        recent_orders=recent_orders,
         matching_orders=matching_orders,
         search_query=search_query
     )
@@ -399,11 +429,21 @@ def track_lookup():
 def track_order(order_number):
     """Live visual order progress tracker (PB-05 / PB-10: Ayden Lotter)"""
     order = Order.query.filter_by(order_number=order_number).first_or_404()
-    session['active_order_number'] = order.order_number
-    session.modified = True
+    remember_order_in_session(order.order_number)
     item_count = sum(item.quantity for item in order.items)
     estimates = get_fulfillment_estimates(item_count)
     stepper_config = analyze_order_stepper(order)
+
+    # Fetch all recent orders from session to render the multi-order switcher bar
+    recent_order_nums = session.get('recent_order_numbers', [])
+    if not isinstance(recent_order_nums, list):
+        recent_order_nums = []
+    if order.order_number not in recent_order_nums:
+        recent_order_nums = [order.order_number] + recent_order_nums
+    recent_orders = []
+    if recent_order_nums:
+        orders_by_num = {o.order_number: o for o in Order.query.filter(Order.order_number.in_(recent_order_nums)).all()}
+        recent_orders = [orders_by_num[num] for num in recent_order_nums if num in orders_by_num]
 
     return render_template(
         'track.html',
@@ -411,7 +451,8 @@ def track_order(order_number):
         estimates=estimates,
         item_count=item_count,
         stepper_config=stepper_config,
-        current_step=stepper_config['current_step']
+        current_step=stepper_config['current_step'],
+        recent_orders=recent_orders
     )
 
 @order_bp.route('/api/<order_number>/status')

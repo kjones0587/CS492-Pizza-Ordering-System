@@ -45,11 +45,17 @@ def create_app(config_class=Config):
             ]
         }
         active_order_num = session.get('active_order_number')
+        recent_order_nums = session.get('recent_order_numbers', [])
+        if not isinstance(recent_order_nums, list):
+            recent_order_nums = []
+        if active_order_num and active_order_num not in recent_order_nums:
+            recent_order_nums = [active_order_num] + recent_order_nums
         return {
             'cart_count': cart_total_qty,
             'restaurant': restaurant_info,
             'csrf_token': generate_csrf_token,
-            'active_order_number': active_order_num
+            'active_order_number': active_order_num,
+            'recent_order_numbers': recent_order_nums
         }
 
     # Automatically create tables and seed on startup

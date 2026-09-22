@@ -540,3 +540,95 @@ def test_non_pizza_items_exclude_toppings(client):
         assert sess['cart'][0]['unit_price'] == salad.base_price
 
 
+def test_multi_order_session_retention_and_switching(client):
+    """Verify that when a user places multiple orders, they can switch between them easily."""
+    # Create two distinct orders
+    order1 = Order(
+        order_number='ORD-20260922-FIRST1',
+        customer_name='Multi Buyer',
+        customer_email='multi@example.com',
+        customer_phone='(555) 111-2222',
+        order_type='pickup',
+        subtotal=14.99,
+        tax_amount=1.24,
+        delivery_fee=0.0,
+        total_amount=16.23,
+        status='Preparing',
+        created_at=datetime.now(timezone.utc)
+    )
+    order2 = Order(
+        order_number='ORD-20260922-SECND2',
+        customer_name='Multi Buyer',
+        customer_email='multi@example.com',
+        customer_phone='(555) 111-2222',
+        order_type='delivery',
+        delivery_address='123 Main St',
+        subtotal=22.00,
+        tax_amount=1.82,
+        delivery_fee=4.99,
+        total_amount=28.81,
+        status='Received',
+        created_at=datetime.now(timezone.utc)
+    )
+    db.session.add_all([order1, order2])
+    db.session.commit()
+
+    # 1. Visit Order 1 tracker
+    res1 = client.get(f'/order/{order1.order_number}/track')
+    assert res1.status_code == 200
+    with client.session_transaction() as sess:
+        assert sess['active_order_number'] == order1.order_number
+        assert sess['recent_order_numbers'] == [order1.order_number]
+
+    # Only 1 order in session -> no multi-order switcher card yet
+    assert 'Your Orders (2)' not in res1.data.decode('utf-8')
+
+    # Navigating to /order/track with only 1 order auto-redirects to order 1
+    redir1 = client.get('/order/track')
+    assert redir1.status_code == 302
+    assert redir1.headers['Location'] == f'/order/{order1.order_number}/track'
+
+    # 2. Visit Order 2 tracker (simulating placing or tracking second order)
+    res2 = client.get(f'/order/{order2.order_number}/track')
+    assert res2.status_code == 200
+    with client.session_transaction() as sess:
+        assert sess['active_order_number'] == order2.order_number
+        assert sess['recent_order_numbers'] == [order2.order_number, order1.order_number]
+
+    html2 = res2.data.decode('utf-8')
+    # Multi-order switcher bar is now active!
+    assert 'Your Orders (2)' in html2
+    assert f'/order/{order1.order_number}/track' in html2
+    assert f'/order/{order2.order_number}/track' in html2
+
+    # 3. Navbar on any page (e.g. /menu/) now has a multi-order dropdown with "2 Active"
+    menu_res = client.get('/menu/')
+    assert menu_res.status_code == 200
+    menu_html = menu_res.data.decode('utf-8')
+    assert 'Track Orders' in menu_html
+    assert '2 Active' in menu_html
+    assert f'/order/{order1.order_number}/track' in menu_html
+    assert f'/order/{order2.order_number}/track' in menu_html
+
+    # 4. Navigating to /order/track with MULTIPLE orders does NOT auto-redirect to just the newest!
+    # It shows the recent orders list on track_lookup.html so the user can choose which order to track
+    lookup_res = client.get('/order/track')
+    assert lookup_res.status_code == 200
+    lookup_html = lookup_res.data.decode('utf-8')
+    assert 'Your Recent Orders in this Browser (2)' in lookup_html
+    assert order1.order_number in lookup_html
+    assert order2.order_number in lookup_html
+    assert f'/order/{order1.order_number}/track' in lookup_html
+    assert f'/order/{order2.order_number}/track' in lookup_html
+
+    # 5. Customer clicks switch link back to Order 1 -> Loads Order 1 tracker
+    switch_res = client.get(f'/order/{order1.order_number}/track')
+    assert switch_res.status_code == 200
+    switch_html = switch_res.data.decode('utf-8')
+    assert order1.order_number in switch_html
+    assert 'Your Orders (2)' in switch_html
+    with client.session_transaction() as sess:
+        assert sess['active_order_number'] == order1.order_number
+
+
+

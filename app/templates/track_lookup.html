@@ -15,7 +15,42 @@
                 <p class="text-muted">Enter your order number, or search by your name, phone number, or email to pull up your live tracker immediately.</p>
             </div>
 
-            {% if active_order_number and not matching_orders %}
+            {% if recent_orders and recent_orders|length > 1 and not matching_orders %}
+            <!-- Recent Session Orders Card List (Multi-Order Switcher) -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4 bg-white p-3 p-md-4 border-start border-danger border-4">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                    <div>
+                        <h6 class="fw-bold text-dark mb-1">
+                            <i class="bi bi-clock-history text-danger me-2"></i>Your Recent Orders in this Browser ({{ recent_orders|length }})
+                        </h6>
+                        <small class="text-muted">Select an order to view its live progress:</small>
+                    </div>
+                </div>
+                <div class="d-flex flex-column gap-2">
+                    {% for ro in recent_orders %}
+                    <div class="d-flex align-items-center justify-content-between p-3 bg-light rounded-3 border flex-wrap gap-2 hover-shadow transition-all">
+                        <div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="fw-bold text-dark font-monospace fs-6">#{{ ro.order_number }}</span>
+                                <span class="badge {% if ro.status == 'Completed' %}bg-success{% elif ro.status == 'Ready' %}bg-success{% elif ro.status in ['Baking', 'In Oven'] %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                                    {{ ro.status }}
+                                </span>
+                                {% if ro.order_number == active_order_number %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size: 0.7rem;">Most Recent</span>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted d-block mt-1">
+                                {{ ro.customer_name }} &bull; {{ ro.items|length }} item(s) &bull; ${{ "%.2f"|format(ro.total_amount) }} &bull; {{ ro.order_type|title }}
+                            </small>
+                        </div>
+                        <a href="{{ url_for('order.track_order', order_number=ro.order_number) }}" class="btn btn-pizza-primary btn-sm rounded-pill px-3 py-1.5 fw-semibold">
+                            Track Order &rarr;
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% elif active_order_number and not matching_orders %}
             <!-- Recent Session Order Banner -->
             <div class="card border-0 shadow-sm rounded-4 mb-4 bg-primary bg-opacity-10 border-start border-primary border-4 p-3">
                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
