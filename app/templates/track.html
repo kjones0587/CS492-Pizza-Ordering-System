@@ -63,6 +63,9 @@
                             <span class="badge bg-success bg-opacity-75 text-white px-2 py-1 small" id="livePollingIndicator">
                                 <i class="bi bi-arrow-repeat me-1"></i>Live Polling
                             </span>
+                            <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3 py-1 shadow-sm d-inline-flex align-items-center" onclick="copyTrackerLink()" id="shareTrackerBtn" title="Copy tracking link to share">
+                                <i class="bi bi-share me-1 text-warning"></i>Share
+                            </button>
                             <a href="{{ url_for('order.track_lookup', new='1') }}" class="switch-find-btn text-decoration-none" title="Switch or find another order">
                                 <i class="bi bi-search me-1 text-danger"></i>Switch / Find
                             </a>
@@ -177,6 +180,53 @@
                                 {% endif %}
                             </small>
                         </div>
+                    </div>
+
+                    <!-- Customer Feedback & Rating Widget (PB-10: Ayden Lotter) -->
+                    <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-light bg-opacity-75 border-start border-warning border-4">
+                        {% if order.customer_rating %}
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <div>
+                                <h6 class="fw-bold text-dark mb-1">
+                                    <i class="bi bi-star-fill text-warning me-1"></i> Your Experience Rating
+                                </h6>
+                                <div class="text-warning fs-5">
+                                    {% for i in range(order.customer_rating) %}&#9733;{% endfor %}
+                                    {% for i in range(5 - order.customer_rating) %}&#9734;{% endfor %}
+                                    <span class="fs-6 text-dark fw-bold ms-2">{{ order.customer_rating }} / 5 Stars</span>
+                                </div>
+                                {% if order.customer_feedback %}
+                                <p class="text-muted small mb-0 mt-2 fst-italic">"{{ order.customer_feedback }}"</p>
+                                {% endif %}
+                            </div>
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2 rounded-pill fw-semibold">
+                                <i class="bi bi-check-circle-fill me-1"></i> Feedback Submitted
+                            </span>
+                        </div>
+                        {% else %}
+                        <h6 class="fw-bold text-dark mb-1"><i class="bi bi-chat-heart text-danger me-2"></i>How was your meal?</h6>
+                        <p class="text-muted small mb-3">Leave a quick rating to let our kitchen team know how we did!</p>
+                        <form action="{{ url_for('order.submit_feedback', order_number=order.order_number) }}" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+                            <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+                                <span class="small fw-bold text-uppercase text-muted">Rating:</span>
+                                <div class="btn-group" role="group" aria-label="Star rating">
+                                    {% for r in [5, 4, 3, 2, 1] %}
+                                    <input type="radio" class="btn-check" name="rating" id="rating{{ r }}" value="{{ r }}" {% if r == 5 %}checked{% endif %}>
+                                    <label class="btn btn-outline-warning btn-sm px-2 px-md-3" for="rating{{ r }}">
+                                        {{ r }} <i class="bi bi-star-fill"></i>
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <textarea name="feedback_text" class="form-control form-control-sm rounded-3" rows="2" placeholder="Tell us what you loved or how we can improve (optional)..."></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-pizza-primary btn-sm rounded-pill px-4 fw-bold shadow-sm">
+                                <i class="bi bi-send-fill me-1"></i> Submit Review
+                            </button>
+                        </form>
+                        {% endif %}
                     </div>
                     {% endif %}
 
@@ -516,5 +566,20 @@ document.addEventListener('DOMContentLoaded', function () {
     // Poll every 8 seconds for live progress updates
     setInterval(pollOrderStatus, 8000);
 });
+
+function copyTrackerLink() {
+    navigator.clipboard.writeText(window.location.href).then(function() {
+        var btn = document.getElementById('shareTrackerBtn');
+        if (btn) {
+            var orig = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check2 text-success me-1"></i>Copied!';
+            setTimeout(function() {
+                btn.innerHTML = orig;
+            }, 2000);
+        }
+    }).catch(function() {
+        prompt('Copy your order tracking URL:', window.location.href);
+    });
+}
 </script>
 {% endblock %}

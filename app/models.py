@@ -109,6 +109,8 @@ class Order(db.Model):
     discount_amount = db.Column(db.Float, nullable=False, default=0.0)
     promo_code = db.Column(db.String(30), nullable=True)
     staff_notes = db.Column(db.String(255), nullable=True)  # Internal kitchen/prep notes (PB-07: Michael Fabacher)
+    customer_rating = db.Column(db.Integer, nullable=True)  # 1-5 customer rating (PB-10: Ayden Lotter)
+    customer_feedback = db.Column(db.Text, nullable=True)  # Customer review comment (PB-10: Ayden Lotter)
 
     items = db.relationship('OrderItem', backref='order', lazy=True, cascade="all, delete-orphan")
 

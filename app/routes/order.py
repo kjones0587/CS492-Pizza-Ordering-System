@@ -471,3 +471,23 @@ def order_status_api(order_number):
         'customer_name': order.customer_name
     })
 
+
+@order_bp.route('/<order_number>/feedback', methods=['POST'])
+def submit_feedback(order_number):
+    """Submit customer star rating and review feedback (PB-10: Ayden Lotter)"""
+    order = Order.query.filter_by(order_number=order_number).first_or_404()
+    try:
+        rating = int(request.form.get('rating', 5))
+        if rating < 1 or rating > 5:
+            rating = 5
+    except (ValueError, TypeError):
+        rating = 5
+
+    feedback_text = request.form.get('feedback_text', '').strip()
+    order.customer_rating = rating
+    order.customer_feedback = feedback_text or None
+    db.session.commit()
+    flash('Thank you for rating your meal! Your feedback helps Bella Napoli deliver perfection.', 'success')
+    return redirect(url_for('order.track_order', order_number=order.order_number))
+
+
