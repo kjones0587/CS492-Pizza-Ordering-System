@@ -284,11 +284,99 @@
                                             <option value="Completed" {% if ord.status == 'Completed' %}selected{% endif %}>Completed</option>
                                             <option value="Cancelled" {% if ord.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
                                         </select>
-                                    </form>
-                                    <button type="button" class="btn btn-link btn-sm text-decoration-none text-muted p-0 small" data-bs-toggle="modal" data-bs-target="#notesModal{{ ord.id }}">
-                                        <i class="bi bi-pencil-square me-1"></i>{% if ord.staff_notes %}Edit Note{% else %}+ Add Note{% endif %}
-                                    </button>
+                                    <div class="d-flex align-items-center gap-2 mt-1">
+                                        <button type="button" class="btn btn-outline-dark btn-sm rounded-pill py-0 px-2" style="font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#ticketModal{{ ord.id }}" title="View & Print Kitchen Station Ticket">
+                                            <i class="bi bi-printer me-1"></i>Ticket
+                                        </button>
+                                        <button type="button" class="btn btn-link btn-sm text-decoration-none text-muted p-0 small" data-bs-toggle="modal" data-bs-target="#notesModal{{ ord.id }}">
+                                            <i class="bi bi-pencil-square me-1"></i>{% if ord.staff_notes %}Edit Note{% else %}+ Add Note{% endif %}
+                                        </button>
+                                    </div>
                                 </div>
+
+                                <!-- Modal for Kitchen Station Print Ticket (PB-07: Michael Fabacher) -->
+                                <div class="modal fade text-start" id="ticketModal{{ ord.id }}" tabindex="-1" aria-labelledby="ticketModalLabel{{ ord.id }}" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content rounded-4 border-0 shadow">
+                                            <div class="modal-header bg-dark text-white rounded-top-4 py-3">
+                                                <h6 class="modal-title fw-bold font-monospace" id="ticketModalLabel{{ ord.id }}">
+                                                    <i class="bi bi-fire text-danger me-1"></i> KITCHEN STATION PREP TICKET
+                                                </h6>
+                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body p-4 bg-light font-monospace" id="printableTicket{{ ord.id }}">
+                                                <div class="text-center pb-2 border-bottom border-dark border-2 mb-3">
+                                                    <h5 class="fw-bold text-dark mb-0">BELLA NAPOLI PIZZERIA</h5>
+                                                    <div class="small text-muted">KITCHEN PREPARATION SLIP</div>
+                                                    <div class="fw-bold fs-5 text-danger mt-1">#{{ ord.order_number }}</div>
+                                                    <div class="small">{{ ord.created_at.strftime('%Y-%m-%d %I:%M:%S %p') }}</div>
+                                                    <span class="badge {% if ord.order_type == 'delivery' %}bg-warning text-dark{% else %}bg-success text-white{% endif %} mt-1">
+                                                        {{ ord.order_type|upper }}
+                                                    </span>
+                                                </div>
+
+                                                <div class="mb-3 pb-2 border-bottom">
+                                                    <div><strong>CUSTOMER:</strong> {{ ord.customer_name }}</div>
+                                                    <div><strong>PHONE:</strong> {{ ord.customer_phone }}</div>
+                                                    {% if ord.delivery_address %}
+                                                    <div><strong>DESTINATION:</strong> {{ ord.delivery_address }}</div>
+                                                    {% endif %}
+                                                </div>
+
+                                                <div class="mb-3">
+                                                    <div class="fw-bold text-uppercase border-bottom pb-1 mb-2">--- ITEMS TO PREPARE ---</div>
+                                                    {% for itm in ord.items %}
+                                                    <div class="mb-2">
+                                                        <span class="fw-bold fs-6">[{{ itm.quantity }}x] {{ itm.item_name }}</span>
+                                                        {% if itm.size_option or itm.crust_option %}
+                                                        <div class="ms-3 small">&bull; {{ itm.size_option }}{% if itm.size_option and itm.crust_option %} | {% endif %}{{ itm.crust_option }}</div>
+                                                        {% endif %}
+                                                        {% if itm.toppings %}
+                                                        <div class="ms-3 small text-danger fw-bold">&bull; TOPPINGS: {{ itm.toppings }}</div>
+                                                        {% endif %}
+                                                        {% if itm.special_notes %}
+                                                        <div class="ms-3 small fst-italic">&bull; NOTE: {{ itm.special_notes }}</div>
+                                                        {% endif %}
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+
+                                                {% if ord.special_instructions %}
+                                                <div class="p-2 bg-warning bg-opacity-25 rounded border border-warning mb-2 small">
+                                                    <strong>CUSTOMER NOTE:</strong> {{ ord.special_instructions }}
+                                                </div>
+                                                {% endif %}
+
+                                                {% if ord.staff_notes %}
+                                                <div class="p-2 bg-info bg-opacity-25 rounded border border-info mb-2 small">
+                                                    <strong>KITCHEN STAFF NOTE:</strong> {{ ord.staff_notes }}
+                                                </div>
+                                                {% endif %}
+
+                                                <div class="pt-2 border-top border-dark border-1 text-center small text-muted">
+                                                    Total Items: {{ ord.items|length }} | Prep Items: {{ ord.prep_item_count }}
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer bg-light rounded-bottom-4 border-0 p-3 d-flex justify-content-between">
+                                                <form action="{{ url_for('staff.add_rush_delay', order_id=ord.id) }}" method="POST" class="d-inline-flex gap-1">
+                                                    <input type="hidden" name="current_filter" value="{{ current_filter }}">
+                                                    <input type="hidden" name="search_query" value="{{ search_query }}">
+                                                    <input type="hidden" name="delay_minutes" value="10">
+                                                    <button type="submit" class="btn btn-outline-warning btn-sm rounded-pill text-dark fw-semibold" title="Flag 10m kitchen rush delay">
+                                                        <i class="bi bi-stopwatch me-1"></i>+10m Rush
+                                                    </button>
+                                                </form>
+                                                <div>
+                                                    <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Close</button>
+                                                    <button type="button" class="btn btn-dark btn-sm rounded-pill px-3" onclick="window.print()">
+                                                        <i class="bi bi-printer me-1"></i> Print Ticket
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
 
                                 <!-- Modal for Kitchen Staff Notes (PB-07: Michael Fabacher) -->
                                 <div class="modal fade text-start" id="notesModal{{ ord.id }}" tabindex="-1" aria-labelledby="notesModalLabel{{ ord.id }}" aria-hidden="true">
