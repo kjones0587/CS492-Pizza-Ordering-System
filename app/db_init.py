@@ -271,7 +271,7 @@ def seed_database():
             'name': 'Italian Sparkling Mineral Water (San Pellegrino)',
             'description': 'Crisp, refreshing imported natural mineral water (500ml bottle).',
             'base_price': 3.49,
-            'image_url': 'https://images.unsplash.com/photo-1560512823-829485b8bf24?auto=format&fit=crop&w=800&q=80',
+            'image_url': '/static/img/san-pellegrino.jpg',
             'is_available': True,
             'options': {'sizes': [], 'crusts': []}
         },
@@ -280,7 +280,7 @@ def seed_database():
             'name': 'Blood Orange Italian Aranciata',
             'description': 'Sparkling Italian soda crafted with sun-ripened Sicilian blood oranges.',
             'base_price': 3.99,
-            'image_url': 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=800&q=80',
+            'image_url': '/static/img/blood-orange-aranciata.jpg',
             'is_available': True,
             'options': {'sizes': [], 'crusts': []}
         },
@@ -317,7 +317,7 @@ def seed_database():
             'name': 'Sicilian Cannoli Duo',
             'description': 'Two crisp handmade pastry shells filled with sweetened sweet ricotta cream, mini dark chocolate chips, and crushed pistachios.',
             'base_price': 6.49,
-            'image_url': 'https://images.unsplash.com/photo-1551529834-525807d6b4f3?auto=format&fit=crop&w=800&q=80',
+            'image_url': '/static/img/cannoli.jpg',
             'is_available': True,
             'options': {'sizes': [], 'crusts': []}
         }

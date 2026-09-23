@@ -291,7 +291,7 @@ def create_menu_item():
         elif 'beverage' in cat_slug or 'drink' in cat_slug:
             image_url = 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=800&q=80'
         else:
-            image_url = 'https://images.unsplash.com/photo-1551529834-525807d6b4f3?auto=format&fit=crop&w=800&q=80'
+            image_url = '/static/img/cannoli.jpg'
 
     options = {'sizes': [], 'crusts': []}
     if 'pizza' in category.slug.lower():
