@@ -333,11 +333,14 @@ def promos():
     all_promos = PromoCode.query.order_by(PromoCode.id.desc()).all()
     active_count = PromoCode.query.filter_by(is_active=True).count()
     inactive_count = PromoCode.query.filter_by(is_active=False).count()
+    # Compute actual redemptions across customer orders
+    promo_counts = {p.id: Order.query.filter_by(promo_code=p.code).count() for p in all_promos}
     return render_template(
         'staff/promos.html',
         promos=all_promos,
         active_count=active_count,
-        inactive_count=inactive_count
+        inactive_count=inactive_count,
+        promo_counts=promo_counts
     )
 
 
@@ -378,6 +381,48 @@ def create_promo():
     return redirect(url_for('staff.promos'))
 
 
+@staff_bp.route('/promos/<int:promo_id>/edit', methods=['POST'])
+@staff_login_required
+def edit_promo(promo_id):
+    """Edit promo code discount rules and description (PB-09: Nicholas Lattimore)"""
+    promo = db.get_or_404(PromoCode, promo_id)
+    description = request.form.get('description', '').strip()
+    discount_type = request.form.get('discount_type', promo.discount_type)
+    try:
+        discount_value = float(request.form.get('discount_value', promo.discount_value))
+        min_subtotal = float(request.form.get('min_subtotal', promo.min_subtotal))
+        if discount_value <= 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        flash('Please enter valid positive numbers for discount value and minimum subtotal.', 'danger')
+        return redirect(url_for('staff.promos'))
+
+    promo.description = description or promo.description
+    promo.discount_type = discount_type
+    promo.discount_value = discount_value
+    promo.min_subtotal = min_subtotal
+    db.session.commit()
+    flash(f"Updated discount rules for promo '{promo.code}'.", 'success')
+    return redirect(url_for('staff.promos'))
+
+
+@staff_bp.route('/promos/<int:promo_id>/delete', methods=['POST'])
+@staff_login_required
+def delete_promo(promo_id):
+    """Delete promo code with safety guards against deleting core system promos (PB-09: Nicholas Lattimore)"""
+    promo = db.get_or_404(PromoCode, promo_id)
+    protected_codes = ['WELCOME10', 'SAVE5', 'ALMASRI']
+    if promo.code in protected_codes:
+        flash(f"Promo '{promo.code}' is a protected default campaign and cannot be deleted. You can deactivate it instead.", 'warning')
+        return redirect(url_for('staff.promos'))
+
+    code_name = promo.code
+    db.session.delete(promo)
+    db.session.commit()
+    flash(f"Promo code '{code_name}' has been permanently deleted.", 'info')
+    return redirect(url_for('staff.promos'))
+
+
 @staff_bp.route('/promos/<int:promo_id>/toggle', methods=['POST'])
 @staff_login_required
 def toggle_promo(promo_id):
@@ -388,4 +433,5 @@ def toggle_promo(promo_id):
     status_str = 'Active' if promo.is_active else 'Inactive'
     flash(f"Promo code '{promo.code}' is now {status_str}.", 'success' if promo.is_active else 'info')
     return redirect(url_for('staff.promos'))
+
 
