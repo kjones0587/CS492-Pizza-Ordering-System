@@ -61,10 +61,21 @@ def logout():
 @staff_login_required
 def orders():
     status_filter = request.args.get('status', 'all')
+    search_query = request.args.get('q', '').strip()
     query = Order.query.order_by(Order.created_at.desc())
 
     if status_filter and status_filter != 'all':
         query = query.filter_by(status=status_filter)
+
+    if search_query:
+        clean_q = search_query.lstrip('#').strip()
+        query = query.filter(
+            db.or_(
+                Order.order_number.ilike(f'%{clean_q}%'),
+                Order.customer_name.ilike(f'%{clean_q}%'),
+                Order.customer_phone.ilike(f'%{clean_q}%')
+            )
+        )
 
     orders_list = query.all()
     latest_order = Order.query.order_by(Order.id.desc()).first()
@@ -78,7 +89,35 @@ def orders():
         'Completed': Order.query.filter_by(status='Completed').count(),
     }
 
-    return render_template('staff/orders.html', orders=orders_list, counts=counts, current_filter=status_filter, latest_order_id=latest_order_id)
+    return render_template(
+        'staff/orders.html',
+        orders=orders_list,
+        counts=counts,
+        current_filter=status_filter,
+        search_query=search_query,
+        latest_order_id=latest_order_id
+    )
+
+@staff_bp.route('/orders/<int:order_id>/advance', methods=['POST'])
+@staff_login_required
+def advance_order_status(order_id):
+    """1-click kitchen stage progression / bump bar (PB-05 / PB-07: Michael Fabacher)"""
+    order = db.get_or_404(Order, order_id)
+    status_pipeline = {
+        'Received': 'Preparing',
+        'Preparing': 'Baking',
+        'Baking': 'Ready',
+        'Ready': 'Completed'
+    }
+    next_status = status_pipeline.get(order.status)
+    if next_status:
+        order.status = next_status
+        db.session.commit()
+        flash(f"Order {order.order_number} advanced to {next_status}.", 'success')
+    else:
+        flash(f"Order {order.order_number} is already {order.status}.", 'info')
+
+    return redirect(url_for('staff.orders', status=request.form.get('current_filter', 'all'), q=request.form.get('search_query', '')))
 
 @staff_bp.route('/orders/<int:order_id>/status', methods=['POST'])
 @staff_login_required
