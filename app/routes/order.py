@@ -491,3 +491,34 @@ def submit_feedback(order_number):
     return redirect(url_for('order.track_order', order_number=order.order_number))
 
 
+@order_bp.route('/<order_number>/reorder')
+def reorder_order(order_number):
+    """1-Click Reorder past favorite order into active session cart (PB-10: Ayden Lotter)"""
+    order = Order.query.filter_by(order_number=order_number).first_or_404()
+    cart = session.get('cart', [])
+    if not isinstance(cart, list):
+        cart = []
+
+    for item in order.items:
+        toppings_list = [t.strip() for t in item.toppings.split(',')] if item.toppings else []
+        cart_item = {
+            'menu_item_id': item.menu_item_id,
+            'name': item.item_name,
+            'size_option': item.size_option,
+            'crust_option': item.crust_option,
+            'toppings': toppings_list,
+            'special_notes': item.special_notes,
+            'unit_price': item.unit_price,
+            'quantity': item.quantity,
+            'line_total': item.line_total,
+            'is_pizza': bool(item.crust_option or (item.menu_item and item.menu_item.is_pizza))
+        }
+        cart.append(cart_item)
+
+    session['cart'] = cart
+    session.modified = True
+    flash(f"Loaded all items from Order #{order.order_number} into your cart! Review or customize your meal below.", 'success')
+    return redirect(url_for('cart.index'))
+
+
+
