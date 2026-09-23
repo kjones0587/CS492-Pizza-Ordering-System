@@ -150,6 +150,23 @@ def update_order_notes(order_id):
     flash(f"Internal kitchen note updated for order {order.order_number}.", 'success')
     return redirect(url_for('staff.orders', status=request.form.get('current_filter', 'all')))
 
+@staff_bp.route('/orders/<int:order_id>/rush-delay', methods=['POST'])
+@staff_login_required
+def add_rush_delay(order_id):
+    """Add kitchen rush delay annotation to order notes (PB-07: Michael Fabacher)"""
+    order = db.get_or_404(Order, order_id)
+    delay_minutes = request.form.get('delay_minutes', '10').strip()
+    tag = f"[RUSH: +{delay_minutes} min delay]"
+    if order.staff_notes:
+        if tag not in order.staff_notes:
+            order.staff_notes = f"{order.staff_notes} | {tag}"
+    else:
+        order.staff_notes = tag
+    db.session.commit()
+    flash(f"Added +{delay_minutes} min rush delay note to Order {order.order_number}.", 'warning')
+    return redirect(url_for('staff.orders', status=request.form.get('current_filter', 'all'), q=request.form.get('search_query', '')))
+
+
 @staff_bp.route('/api/orders/poll', methods=['GET'])
 @staff_login_required
 def poll_orders():
