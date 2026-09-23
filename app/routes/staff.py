@@ -1,3 +1,4 @@
+import json
 from functools import wraps
 from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, current_app
@@ -198,6 +199,92 @@ def update_item_price(item_id):
         flash('Please enter a valid positive base price.', 'danger')
 
     return redirect(url_for('staff.menu', category=request.form.get('current_category', 'all')))
+
+
+@staff_bp.route('/menu/create', methods=['POST'])
+@staff_login_required
+def create_menu_item():
+    """Add new menu item to catalog (PB-08: Nicholas Lattimore)"""
+    name = request.form.get('name', '').strip()
+    category_id = request.form.get('category_id')
+    description = request.form.get('description', '').strip()
+    image_url = request.form.get('image_url', '').strip()
+    is_available = request.form.get('is_available') in ['on', 'true', '1']
+
+    try:
+        base_price = float(request.form.get('base_price', 0.0))
+        if base_price <= 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        flash('Please enter a valid positive base price.', 'danger')
+        return redirect(url_for('staff.menu'))
+
+    if not name or not category_id:
+        flash('Item name and category are required.', 'danger')
+        return redirect(url_for('staff.menu'))
+
+    category = db.get_or_404(Category, int(category_id))
+
+    # Automatic realistic fallback image if none provided
+    if not image_url:
+        cat_slug = category.slug.lower()
+        if 'pizza' in cat_slug:
+            image_url = 'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&w=800&q=80'
+        elif 'appetizer' in cat_slug or 'sides' in cat_slug:
+            image_url = 'https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?auto=format&fit=crop&w=800&q=80'
+        elif 'beverage' in cat_slug or 'drink' in cat_slug:
+            image_url = 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=800&q=80'
+        else:
+            image_url = 'https://images.unsplash.com/photo-1551529834-525807d6b4f3?auto=format&fit=crop&w=800&q=80'
+
+    options = {'sizes': [], 'crusts': []}
+    if 'pizza' in category.slug.lower():
+        options = {
+            'sizes': [
+                {'name': 'Personal (10")', 'price_modifier': 0.0},
+                {'name': 'Medium (12")', 'price_modifier': 3.50},
+                {'name': 'Large (16")', 'price_modifier': 6.50}
+            ],
+            'crusts': [
+                {'name': 'Neapolitan Hand-Tossed', 'price_modifier': 0.0},
+                {'name': 'Crispy Thin Crust', 'price_modifier': 0.0},
+                {'name': 'Gluten-Free Cauliflower Crust', 'price_modifier': 3.00}
+            ]
+        }
+
+    new_item = MenuItem(
+        category_id=category.id,
+        name=name,
+        description=description or f"Freshly prepared {name}.",
+        base_price=round(base_price, 2),
+        image_url=image_url,
+        is_available=is_available,
+        options_json=json.dumps(options)
+    )
+    db.session.add(new_item)
+    db.session.commit()
+    flash(f"Successfully added '{name}' to {category.name}.", 'success')
+    return redirect(url_for('staff.menu', category=category.slug))
+
+
+@staff_bp.route('/menu/<int:item_id>/update-info', methods=['POST'])
+@staff_login_required
+def update_item_info(item_id):
+    """Update menu item name and description (PB-08: Nicholas Lattimore)"""
+    item = db.get_or_404(MenuItem, item_id)
+    name = request.form.get('name', '').strip()
+    description = request.form.get('description', '').strip()
+
+    if not name:
+        flash('Item name cannot be blank.', 'danger')
+    else:
+        item.name = name
+        item.description = description
+        db.session.commit()
+        flash(f"Updated details for '{item.name}'.", 'success')
+
+    return redirect(url_for('staff.menu', category=request.form.get('current_category', 'all')))
+
 
 
 @staff_bp.route('/promos', methods=['GET'])

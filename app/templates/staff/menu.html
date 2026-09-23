@@ -15,7 +15,10 @@
             <p class="text-muted mb-0">Manage dish availability, view category pricing, and toggle real-time stock status.</p>
         </div>
         <div class="d-flex gap-2">
-            <a href="{{ url_for('menu.index') }}" target="_blank" class="btn btn-outline-primary btn-sm">
+            <button type="button" class="btn btn-pizza-primary btn-sm rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#addMenuItemModal">
+                <i class="bi bi-plus-circle me-1"></i> Add Menu Item
+            </button>
+            <a href="{{ url_for('menu.index') }}" target="_blank" class="btn btn-outline-primary btn-sm rounded-pill px-3">
                 <i class="bi bi-box-arrow-up-right me-1"></i> Public Menu Preview
             </a>
         </div>
@@ -128,9 +131,12 @@
                                 </span>
                                 {% endif %}
                             </td>
-                            <td class="text-end pe-4">
+                            <td class="text-end pe-4 text-nowrap">
+                                <button type="button" class="btn btn-outline-primary btn-sm me-1 rounded-pill" onclick="openEditInfoModal({{ item.id }}, '{{ item.name|replace("'", "\\'") }}', '{{ (item.description or '')|replace("'", "\\'")|replace('\n', ' ') }}')" title="Edit name & description">
+                                    <i class="bi bi-pencil me-1"></i> Details
+                                </button>
                                 <button type="button" class="btn btn-outline-secondary btn-sm me-1 rounded-pill" onclick="openPriceModal({{ item.id }}, '{{ item.name|replace("'", "\\'") }}', {{ item.base_price }})" title="Update base price">
-                                    <i class="bi bi-pencil-square me-1"></i> Edit Price
+                                    <i class="bi bi-tag me-1"></i> Price
                                 </button>
                                 <form method="POST" action="{{ url_for('staff.toggle_item_status', item_id=item.id) }}" class="d-inline">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
@@ -197,5 +203,109 @@ function openPriceModal(itemId, itemName, currentPrice) {
     document.getElementById('editPriceForm').action = '/staff/menu/' + itemId + '/update-price';
     new bootstrap.Modal(document.getElementById('editPriceModal')).show();
 }
+
+function openEditInfoModal(itemId, itemName, currentDesc) {
+    document.getElementById('modalEditInfoName').value = itemName;
+    document.getElementById('modalEditInfoDesc').value = currentDesc;
+    document.getElementById('editInfoForm').action = '/staff/menu/' + itemId + '/update-info';
+    new bootstrap.Modal(document.getElementById('editInfoModal')).show();
+}
 </script>
+
+<!-- Modal: Add New Menu Item (PB-08: Nicholas Lattimore) -->
+<div class="modal fade" id="addMenuItemModal" tabindex="-1" aria-labelledby="addMenuItemModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header bg-dark text-white rounded-top-4 py-3">
+                <h5 class="modal-title fw-bold" id="addMenuItemModalLabel">
+                    <i class="bi bi-plus-circle text-danger me-2"></i>Add New Menu Item
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('staff.create_menu_item') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label for="new_item_name" class="form-label fw-bold small text-uppercase">Dish / Item Name</label>
+                        <input type="text" class="form-control rounded-3" id="new_item_name" name="name" placeholder="e.g. Quattro Formaggi Deluxe" required>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="new_item_category" class="form-label fw-bold small text-uppercase">Category</label>
+                            <select class="form-select rounded-3" id="new_item_category" name="category_id" required>
+                                <option value="" disabled selected>Select category...</option>
+                                {% for cat in categories %}
+                                <option value="{{ cat.id }}" {% if current_category == cat.slug %}selected{% endif %}>{{ cat.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="new_item_price" class="form-label fw-bold small text-uppercase">Base Price ($)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" step="0.01" min="0.50" class="form-control rounded-end-3" id="new_item_price" name="base_price" placeholder="15.99" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="new_item_desc" class="form-label fw-bold small text-uppercase">Description & Ingredients</label>
+                        <textarea class="form-control rounded-3" id="new_item_desc" name="description" rows="3" placeholder="Artisan stone-baked crust layered with fresh mozzarella, gorgonzola, and sweet basil."></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="new_item_image" class="form-label fw-bold small text-uppercase">Photo Image URL (Optional)</label>
+                        <input type="url" class="form-control rounded-3" id="new_item_image" name="image_url" placeholder="https://... (leave blank for automatic category photo)">
+                    </div>
+
+                    <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" role="switch" id="new_item_available" name="is_available" checked>
+                        <label class="form-check-label fw-semibold" for="new_item_available">Immediately Available (In Stock)</label>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light rounded-bottom-4 border-0 p-3">
+                    <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-pizza-primary btn-sm rounded-pill px-4 fw-bold shadow-sm">
+                        <i class="bi bi-check-circle-fill me-1"></i> Create Item
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Edit Item Name & Description (PB-08: Nicholas Lattimore) -->
+<div class="modal fade" id="editInfoModal" tabindex="-1" aria-labelledby="editInfoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header bg-dark text-white rounded-top-4 py-3">
+                <h5 class="modal-title fw-bold" id="editInfoModalLabel">
+                    <i class="bi bi-pencil-square text-primary me-2"></i>Edit Dish Details
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editInfoForm" method="POST" action="">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+                <input type="hidden" name="current_category" value="{{ current_category }}">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label for="modalEditInfoName" class="form-label fw-bold small text-uppercase">Dish Name</label>
+                        <input type="text" class="form-control rounded-3 fw-bold" id="modalEditInfoName" name="name" required>
+                    </div>
+                    <div class="mb-2">
+                        <label for="modalEditInfoDesc" class="form-label fw-bold small text-uppercase">Description</label>
+                        <textarea class="form-control rounded-3" id="modalEditInfoDesc" name="description" rows="4" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light rounded-bottom-4 border-0 p-3">
+                    <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm">
+                        <i class="bi bi-check-circle-fill me-1"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
