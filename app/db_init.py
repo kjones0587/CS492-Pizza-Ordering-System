@@ -308,7 +308,7 @@ def seed_database():
             'name': 'Traditional Mascarpone Tiramisu',
             'description': 'Espresso-soaked Italian ladyfingers layered with velvety mascarpone cream and dusted with Dutch cocoa powder.',
             'base_price': 6.99,
-            'image_url': 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?auto=format&fit=crop&w=800&q=80',
+            'image_url': '/static/img/tiramisu.jpg',
             'is_available': True,
             'options': {'sizes': [], 'crusts': []}
         },
