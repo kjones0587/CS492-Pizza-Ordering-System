@@ -5,6 +5,7 @@ CS492 Capstone - Pizza Restaurant Online Ordering System
 ## Pizza Restaurant Online Ordering System
 **Course:** CS492 Computer Science Capstone  
 **Instructor:** Prof. Fadi Almasri  
+**Live Production Application:** [https://cs492-pizza-ordering-system.onrender.com](https://cs492-pizza-ordering-system.onrender.com)  
 **Sprint 1 Dates:** 08/31/2026 – 09/13/2026 *(100% Completed & Graded)*  
 **Sprint 2 Dates:** 09/14/2026 – 09/27/2026 *(100% Completed & Deployed)*  
 
