@@ -58,8 +58,8 @@ A responsive web application designed for a local pizzeria, supporting customer 
 | :---: | :---: | :--- | :--- | :---: | :--- | :---: |
 | **T2-01** | **PB-06** | Design and validate online payment workflow | **Michael Fabacher & Kellen Jones** | 12 hrs | Mock payment gateway service with Modulo 10 Luhn checksum card validation, card brand detection (Visa, MC, Amex, Discover), future expiration checking, sandbox decline rules, interactive checkout payment form, screen-darkening decline spotlight, and confirmation receipt badges (`app/services/payment.py`, `app/templates/checkout.html`, `app/routes/order.py`). | ✅ Complete |
 | **T2-02** | **PB-07** | Create secure manager login and access control | **Nicholas Lattimore & Michael Fabacher** | 10 hrs | Staff authentication backend (`/staff/login`, `/staff/logout`), password hashing, session management, `@staff_login_required` decorator, and manager login portal with navbar session indicator (`app/routes/staff.py`, `app/templates/staff/login.html`). | ✅ Complete |
-| **T2-03** | **PB-08** | Build menu management for adding, editing, and disabling items | **Ayden Lotter & Nicholas Lattimore** | 14 hrs | Staff portal menu item management (`/staff/menu`) to update base prices, edit descriptions, toggle item availability (in stock / out of stock), and create new items with category image fallbacks. | ✅ Complete |
-| **T2-04** | **PB-09** | Build discount and promotion management | **Michael Fabacher & Nicholas Lattimore** | 10 hrs | Coupon engine with percentage and fixed discounts, minimum subtotal thresholds (`/cart/apply-promo`), checkout promo code input form, AJAX bill recalculation, usage count tracking, and protected default code guardrails (`app/routes/cart.py`, `app/templates/checkout.html`, `app/templates/staff/promos.html`). | ✅ Complete |
+| **T2-03** | **PB-08** | Build menu management for adding, editing, and disabling items | **Ayden Lotter & Nicholas Lattimore** | 14 hrs | Staff portal menu item management (`/staff/menu`) to update base prices, edit descriptions, toggle item availability (in stock / out of stock), create new items with category image fallbacks, and permanently delete items with custom confirmation modal. | ✅ Complete |
+| **T2-04** | **PB-09** | Build discount and promotion management | **Michael Fabacher & Nicholas Lattimore** | 10 hrs | Coupon engine with percentage and fixed discounts, minimum subtotal thresholds (`/cart/apply-promo`), checkout promo code input form, AJAX bill recalculation, usage count tracking, edit promo rules, and permanently delete promo codes with custom confirmation modal (`app/routes/cart.py`, `app/templates/checkout.html`, `app/templates/staff/promos.html`). | ✅ Complete |
 | **T2-05** | **PB-11** | Review input validation, data protection, and payment data handling | **Nicholas Lattimore & Ayden Lotter** | 8 hrs | CSRF token protection on all POST forms, secure session cookies (`HTTPOnly`, `SameSite=Lax`), and AJAX request CSRF header injection. | ✅ Complete |
 | **T2-06** | **PB-10 / PB-12** | Mobile touch UX polish, testing notes, and deployment prep | **Kellen Jones & Ayden Lotter** | 11 hrs | Minimum 46px touch targets for pizza customization, quantity stepper touch sizing, iOS zoom prevention (16px inputs), sticky mobile checkout bar, and automated regression test suite (**58 passing tests**) (`app/static/css/style.css`, `tests/`). | ✅ Complete |
 | **Total** | | | | **65 hrs** | | **100% Complete** |
@@ -111,30 +111,20 @@ pip install -r requirements.txt
 ```bash
 python run.py
 ```
-Open your browser and navigate to `http://localhost:5000`. The database automatically initializes and seeds default menu categories and items on first run.
+Open your browser and navigate to `http://localhost:5000`. The database automatically initializes and seeds default menu categories, items, promo codes, and manager credentials on first run.
 
 ### 5. Run the Automated Tests
 ```bash
 pytest
 ```
-*Executes all 6 test suites verifying tasks T1-01 through T1-06.*
+*Executes all 7 test suites (58 passing tests) verifying both Sprint 1 and Sprint 2 deliverables with a 100% pass rate.*
 
 ---
 
-## Deployment to Render.com
+## Live Deployment (Render.com)
 
-This repository contains everything required for zero-configuration 1-click deployment on Render:
+The application is deployed live and configured for multi-user concurrency during presentations:
+* **Live Web App:** [https://cs492-pizza-ordering-system.onrender.com](https://cs492-pizza-ordering-system.onrender.com)
+* **Production Server:** Gunicorn WSGI server running 2 workers and 4 threads with a 30-second SQLite busy timeout for parallel audience interactions.
+* **CI/CD Continuous Deployment:** Automatic zero-downtime deployment triggers whenever changes are merged into the `main` branch.
 
-1. Push this repository to GitHub:
-   ```bash
-   git add .
-   git commit -m "Sprint 1 delivery: tasks T1-01 through T1-06"
-   git push origin main
-   ```
-2. Log into [Render.com](https://render.com) and click **New +** -> **Web Service**.
-3. Select your GitHub repository `kjones0587/CS492-Pizza-Ordering-System`.
-4. Configure the service:
-   - **Runtime:** `Python 3`
-   - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `gunicorn run:app`
-5. Click **Deploy Web Service**. Render will automatically build the service, initialize the SQLite database, and launch your live public URL!
