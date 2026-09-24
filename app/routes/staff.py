@@ -443,13 +443,8 @@ def edit_promo(promo_id):
 @staff_bp.route('/promos/<int:promo_id>/delete', methods=['POST'])
 @staff_login_required
 def delete_promo(promo_id):
-    """Delete promo code with safety guards against deleting core system promos (PB-09: Nicholas Lattimore)"""
+    """Delete promo code (PB-09: Nicholas Lattimore)"""
     promo = db.get_or_404(PromoCode, promo_id)
-    protected_codes = ['WELCOME10', 'SAVE5', 'ALMASRI']
-    if promo.code in protected_codes:
-        flash(f"Promo '{promo.code}' is a protected default campaign and cannot be deleted. You can deactivate it instead.", 'warning')
-        return redirect(url_for('staff.promos'))
-
     code_name = promo.code
     db.session.delete(promo)
     db.session.commit()

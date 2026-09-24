@@ -57,20 +57,19 @@ def test_promo_edit_delete_and_usage_count(client):
     assert thursday_promo.min_subtotal == 30.0
     assert 'Updated Thursday' in thursday_promo.description
 
-    # 5. Protected promo deletion prevention
-    del_protected_res = client.post(f'/staff/promos/{welcome_promo.id}/delete', follow_redirects=True)
-    assert del_protected_res.status_code == 200
-    protected_html = del_protected_res.data.decode('utf-8')
-    assert 'protected default campaign' in protected_html
-    # Verify WELCOME10 still exists
-    assert PromoCode.query.filter_by(code='WELCOME10').first() is not None
-
-    # 6. Delete custom promo code
+    # 5. Delete promo code
     del_custom_res = client.post(f'/staff/promos/{thursday_promo.id}/delete', follow_redirects=True)
     assert del_custom_res.status_code == 200
     custom_html = del_custom_res.data.decode('utf-8')
     assert 'permanently deleted' in custom_html
     assert PromoCode.query.filter_by(code='THURSDAY20').first() is None
+
+    # 6. Delete default promo code (verified that all promo codes can be removed)
+    del_welcome_res = client.post(f'/staff/promos/{welcome_promo.id}/delete', follow_redirects=True)
+    assert del_welcome_res.status_code == 200
+    welcome_html = del_welcome_res.data.decode('utf-8')
+    assert 'permanently deleted' in welcome_html
+    assert PromoCode.query.filter_by(code='WELCOME10').first() is None
 
 
 def test_kitchen_ticket_and_rush_delay(client):
