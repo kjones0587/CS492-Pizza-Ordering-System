@@ -14,6 +14,11 @@ class Config:
     # Standard delivery fee
     DELIVERY_FEE = 4.99
 
+    # SQLite Concurrency & Timeout Hardening
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'connect_args': {'timeout': 30}
+    }
+
     # Security & Cookie Hardening (Task T2-10 / PB-11: Ayden Lotter)
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
