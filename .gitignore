@@ -64,3 +64,6 @@ venv.bak/
 # OS specific files
 .DS_Store
 Thumbs.db
+
+# NotebookLM / Documentation exports
+notebooklm_exports/
