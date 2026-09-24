@@ -55,6 +55,12 @@ def test_staff_menu_item_creation_and_info_update(client):
     }, follow_redirects=True)
     assert 'Please enter a valid positive base price' in bad_price_res.data.decode('utf-8')
 
+    # 5. POST delete menu item (full CRUD: Nicholas Lattimore / PB-08)
+    delete_res = client.post(f'/staff/menu/{created_item.id}/delete', follow_redirects=True)
+    assert delete_res.status_code == 200
+    assert 'Successfully deleted' in delete_res.data.decode('utf-8')
+    assert MenuItem.query.filter_by(id=created_item.id).first() is None
+
 
 def test_kitchen_order_search_and_1_click_advance(client):
     """Verify staff can search orders and advance stages with 1-click bump bar (PB-05/PB-07: Michael Fabacher)."""

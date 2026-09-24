@@ -2,7 +2,7 @@ import json
 from functools import wraps
 from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, current_app
-from app.models import db, Order, Manager, Category, MenuItem, PromoCode
+from app.models import db, Order, OrderItem, Manager, Category, MenuItem, PromoCode
 
 staff_bp = Blueprint('staff', __name__)
 
@@ -340,6 +340,23 @@ def update_item_info(item_id):
         flash(f"Updated details for '{item.name}'.", 'success')
 
     return redirect(url_for('staff.menu', category=request.form.get('current_category', 'all')))
+
+
+@staff_bp.route('/menu/<int:item_id>/delete', methods=['POST'])
+@staff_login_required
+def delete_menu_item(item_id):
+    """Delete a menu item from the catalog (PB-08)."""
+    item = db.get_or_404(MenuItem, item_id)
+    item_name = item.name
+    category_slug = item.category.slug if item.category else 'all'
+
+    # Unlink any existing order items to preserve past customer order receipts
+    OrderItem.query.filter_by(menu_item_id=item.id).update({'menu_item_id': None})
+
+    db.session.delete(item)
+    db.session.commit()
+    flash(f"Successfully deleted '{item_name}' from the menu.", 'success')
+    return redirect(url_for('staff.menu', category=request.form.get('current_category', category_slug)))
 
 
 

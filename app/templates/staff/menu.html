@@ -138,7 +138,7 @@
                                 <button type="button" class="btn btn-outline-secondary btn-sm me-1 rounded-pill" onclick="openPriceModal({{ item.id }}, '{{ item.name|replace("'", "\\'") }}', {{ item.base_price }})" title="Update base price">
                                     <i class="bi bi-tag me-1"></i> Price
                                 </button>
-                                <form method="POST" action="{{ url_for('staff.toggle_item_status', item_id=item.id) }}" class="d-inline">
+                                <form method="POST" action="{{ url_for('staff.toggle_item_status', item_id=item.id) }}" class="d-inline me-1">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
                                     <input type="hidden" name="current_category" value="{{ current_category }}">
                                     {% if item.is_available %}
@@ -151,6 +151,9 @@
                                     </button>
                                     {% endif %}
                                 </form>
+                                <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-2" onclick="openDeleteModal({{ item.id }}, '{{ item.name|replace("'", "\\'") }}')" title="Delete this item">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
                             </td>
                         </tr>
                         {% else %}
@@ -209,6 +212,12 @@ function openEditInfoModal(itemId, itemName, currentDesc) {
     document.getElementById('modalEditInfoDesc').value = currentDesc;
     document.getElementById('editInfoForm').action = '/staff/menu/' + itemId + '/update-info';
     new bootstrap.Modal(document.getElementById('editInfoModal')).show();
+}
+
+function openDeleteModal(itemId, itemName) {
+    document.getElementById('deleteItemName').textContent = itemName;
+    document.getElementById('deleteItemForm').action = '/staff/menu/' + itemId + '/delete';
+    new bootstrap.Modal(document.getElementById('deleteItemModal')).show();
 }
 </script>
 
@@ -302,6 +311,35 @@ function openEditInfoModal(itemId, itemName, currentDesc) {
                     <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm">
                         <i class="bi bi-check-circle-fill me-1"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Delete Menu Item Confirmation -->
+<div class="modal fade" id="deleteItemModal" tabindex="-1" aria-labelledby="deleteItemModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header bg-danger text-white rounded-top-4 py-3">
+                <h6 class="modal-title fw-bold" id="deleteItemModalLabel">
+                    <i class="bi bi-trash3-fill me-1"></i> Delete Menu Item
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="deleteItemForm" method="POST" action="">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+                <input type="hidden" name="current_category" value="{{ current_category }}">
+                <div class="modal-body p-4 text-center">
+                    <i class="bi bi-exclamation-triangle text-danger fs-1 d-block mb-3"></i>
+                    <p class="mb-2">Are you sure you want to permanently delete <strong id="deleteItemName" class="text-dark"></strong> from the menu?</p>
+                    <small class="text-muted">This item will be removed immediately from both the staff portal and customer storefront.</small>
+                </div>
+                <div class="modal-footer bg-light rounded-bottom-4 border-0 p-3 justify-content-center">
+                    <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger btn-sm rounded-pill px-4 fw-bold shadow-sm">
+                        <i class="bi bi-trash me-1"></i> Delete Item
                     </button>
                 </div>
             </form>
