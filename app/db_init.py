@@ -236,7 +236,7 @@ def seed_database():
             'name': 'Garlic Herb Dough Knots',
             'description': 'Six golden oven-baked dough knots brushed with roasted garlic butter, fresh parsley, and grated Parmesan. Served with marinara.',
             'base_price': 6.99,
-            'image_url': 'https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?auto=format&fit=crop&w=800&q=80',
+            'image_url': '/static/img/garlic-knots.jpg',
             'is_available': True,
             'options': {
                 'sizes': [{'name': '6-Piece Order', 'price_modifier': 0.0}, {'name': '12-Piece Order', 'price_modifier': 4.50}],

@@ -287,7 +287,7 @@ def create_menu_item():
         if 'pizza' in cat_slug:
             image_url = 'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&w=800&q=80'
         elif 'appetizer' in cat_slug or 'sides' in cat_slug:
-            image_url = 'https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?auto=format&fit=crop&w=800&q=80'
+            image_url = '/static/img/garlic-knots.jpg'
         elif 'beverage' in cat_slug or 'drink' in cat_slug:
             image_url = 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=800&q=80'
         else:
